@@ -99,7 +99,7 @@ VERSION : 0.1
 BEGIN
 	// ================================
 	// Author: Adam
-	// Version: 1.0
+	// Version: 1.1
 	// Date: 2025-05-05
 	// Description: Motor control class for TIA Portal
 	// ================================
@@ -367,67 +367,6 @@ BEGIN
 	END_REGION ;
 	
 	REGION Device status code
-	    // IF #statFault THEN
-	    //     #oStatus := #STATUS_FAULT;
-	        
-	    // ELSIF #statControlMode = #MODE_REMOTE THEN
-	    //     #oStatus := #STATUS_OFF;
-	        
-	    // ELSIF #statControlMode = #MODE_LOCAL THEN
-	        
-	    //     IF #statTurnOnConfirm THEN
-	    //         #oStatus := #STATUS_ON;
-	            
-	    //     ELSIF #statTurnOffConfirm THEN
-	    //         #oStatus := #STATUS_OFF;
-	            
-	    //     ELSIF #statControl THEN
-	    //         #oStatus := #STATUS_STARTING;
-	            
-	    //     ELSIF NOT #statControl THEN
-	    //         #oStatus := #STATUS_STOPPING;
-	    //     END_IF;
-	        
-	    // ELSIF #statControlMode > #MODE_LOCAL THEN
-	        
-	    //     IF #statSwitchControl AND #statSwitchEnable THEN
-	            
-	    //         IF #statControl AND NOT #statTurnOffConfirm AND #statTurnOnConfirm THEN
-	                
-	    //             #oStatus := #STATUS_ON;
-	                
-	    //         ELSIF NOT #statControl AND NOT #statTurnOnConfirm AND #statTurnOffConfirm THEN
-	                
-	    //             #oStatus := #STATUS_OFF;
-	                
-	    //         ELSIF #statControl THEN
-	                
-	    //             #oStatus := #STATUS_STARTING;
-	                
-	    //         ELSIF NOT #statControl THEN
-	                
-	    //             #oStatus := #STATUS_STOPPING;
-	                
-	    //         END_IF;
-	            
-	    //     ELSIF NOT #statSwitchControl OR NOT #statSwitchEnable THEN //if no output enable or switch check then
-	            
-	    //         IF #statControl THEN
-	                
-	    //             #oStatus := #STATUS_ON;
-	                
-	    //         ELSIF NOT #statControl THEN
-	                
-	    //             #oStatus := #STATUS_OFF;
-	                
-	    //         END_IF;
-	            
-	    //     END_IF;
-	        
-	    // ELSE
-	    //     #oStatus := 0;
-	        
-	    // END_IF;
 	    
 	    IF #statFault THEN
 	        #oStatus := #STATUS_FAULT;
