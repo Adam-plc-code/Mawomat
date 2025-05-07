@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SW.Blocks.FB ID="1">
+  <AttributeList>
+    <Name>FB1</Name>
+    <ProgrammingLanguage>LAD</ProgrammingLanguage>
+    <Interface>
+      <Input>
+        <Member Name="Start" Datatype="Bool" />
+      </Input>
+      <Output>
+        <Member Name="PumpOn" Datatype="Bool" />
+      </Output>
+    </Interface>
+  </AttributeList>
+  <ObjectList>
+    <SW.Blocks.CompileUnit>
+      <Network>
+        <Title>Start Pump</Title>
+        <Comment>Simple ladder logic to start pump</Comment>
+        <Logic>
+          <Contact Type="NormallyOpen" Variable="Start" />
+          <Coil Type="Output" Variable="PumpOn" />
+        </Logic>
+      </Network>
+    </SW.Blocks.CompileUnit>
+  </ObjectList>
+</SW.Blocks.FB>
