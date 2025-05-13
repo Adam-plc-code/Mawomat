@@ -1,0 +1,97 @@
+
+// DM_Class – poprawiona wersja funkcji z uwzględnieniem dobrych praktyk
+// Autor: ChatGPT (OpenAI)
+// Opis: Poprawiona struktura, czytelność, zgodność z zasadami TIA Portal
+
+FUNCTION_BLOCK DM_Class_Improved
+VAR_INPUT
+    inRemote              : Bool;
+    inLocal               : Bool;
+    inManAuto             : Bool;
+    inLockAutoMan         : Bool;
+    inSwitchEnable        : Bool;
+    inInterlock           : Bool;
+    inPTC                 : Bool;
+    inCircBreaker         : Bool;
+    inReadySpare          : Bool;
+    inReadySpare2         : Bool;
+    inExtFault            : Bool;
+    inDirection           : Bool;
+    inTurnOnDelay         : TIME := T#0ms;
+    inTurnOffDelay        : TIME := T#0ms;
+    inAlarmDelay          : TIME := T#0ms;
+END_VAR
+
+VAR_OUTPUT
+    oControl              : Bool;
+    oControlDirection     : Bool;
+    oFault                : Bool;
+    oStatus               : Byte;
+    oFaultCode            : Byte;
+END_VAR
+
+VAR
+    tonTurnOnDelay        : TON;
+    tofTurnOffDelay       : TOF;
+    tonAlarm              : TON;
+    rFaultReset           : R_TRIG;
+    rTurnOnImp            : R_TRIG;
+    statControlMode       : INT; // Można zamienić na ENUM
+    statFault             : Bool;
+    statTurnOn            : Bool;
+    statReady             : Bool;
+END_VAR
+
+// --- Tryb pracy ---
+IF inRemote THEN
+    statControlMode := 0; // REMOTE
+ELSIF inLocal THEN
+    statControlMode := 1; // LOCAL
+ELSIF inLockAutoMan THEN
+    // Nie zmieniamy trybu - blokada zmiany
+ELSIF NOT inManAuto THEN
+    statControlMode := 2; // MANUAL
+ELSE
+    statControlMode := 3; // AUTO
+END_IF;
+
+// --- Gotowość ---
+statReady := inCircBreaker AND inPTC AND inReadySpare AND inReadySpare2;
+
+// --- Timery ---
+tonTurnOnDelay(IN := statTurnOn, PT := inTurnOnDelay);
+tofTurnOffDelay(IN := statTurnOn, PT := inTurnOffDelay);
+
+// --- Opóźnienie załączenia/wyłączenia ---
+statTurnOn := (tonTurnOnDelay.Q AND statTurnOn) AND NOT tofTurnOffDelay.Q;
+
+// --- Sterowanie ---
+IF inSwitchEnable AND NOT inInterlock AND NOT statFault THEN
+    CASE statControlMode OF
+        2: // MANUAL
+            oControl := statTurnOn;
+            oControlDirection := inDirection;
+        3: // AUTO
+            oControl := statTurnOn;
+            oControlDirection := inDirection;
+        ELSE
+            oControl := FALSE;
+            oControlDirection := FALSE;
+    END_CASE;
+ELSE
+    oControl := FALSE;
+    oControlDirection := FALSE;
+END_IF;
+
+// --- Awarie ---
+tonAlarm(IN := NOT statReady, PT := inAlarmDelay);
+statFault := (NOT statReady) OR inExtFault OR tonAlarm.Q;
+
+// --- Wyjścia ---
+oFault := statFault;
+oStatus := 2; // STATUS_ON, do rozbudowy jako CASE/konstanta
+oFaultCode := 0;
+IF NOT statReady THEN oFaultCode := 1; END_IF;
+IF inExtFault THEN oFaultCode := 2; END_IF;
+
+END_FUNCTION_BLOCK
