@@ -6,8 +6,8 @@ VERSION : 0.1
       inTurnOffConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie wyłączenia
       inCircBreaker { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - rozłącznik
       inPTC { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - PTC
-      inReadySpare { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := true;   // Gotowość obiektu - rezerwa
-      inReadySpare2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := true;   // Gotowość obiektu - rezerwa
+      inReadySpare { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
+      inReadySpare2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
       inLocalMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb lokalny
       inRemoteMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb remontowy
       inExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Błąd zewnętrzny
@@ -28,8 +28,8 @@ VERSION : 0.1
       oControlDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście strujące kierunkiem obrotów
       oAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście reset obiektu
       oFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście awaria
-      oFaultCode : Byte;   // Kod awarii 
-      oStatusCode : Word;   // Kod statusu 
+      oFaultCode : Byte;   // Kod awarii
+      oStatusCode : Word;   // Kod statusu
       oStatus : Int;   // Status ( 1-awaria; 2-Wył; 4-Załączanie; 8-Zał; 16-Wyłączanie)
       oControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
    END_VAR
@@ -38,11 +38,11 @@ VERSION : 0.1
       inTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączanie z programu
    END_VAR
    VAR_IN_OUT RETAIN
-      inCmdOper : Word := 16#5;   // Komendy manualne 
+      inCmdOper : Word := 16#0005;   // Komendy manualne
       inSimOper : Word;   // Komendy symulacji
    END_VAR
    VAR_IN_OUT 
-      inCmdOperImp : Word;   // Komendy impulsowe 
+      inCmdOperImp : Word;   // Komendy impulsowe
    END_VAR
 
    VAR RETAIN
@@ -77,9 +77,9 @@ VERSION : 0.1
       statTmrOnOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       trigGlobalReset {InstructionName := 'R_TRIG'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : R_TRIG;
       statFaultCond1 { S7_SetPoint := 'True'} : Bool;
-      statFaultCond2 { S7_SetPoint := 'True'} : Bool := false;
-      statFaultCond3 { S7_SetPoint := 'True'} : Bool := false;
-      statFaultCond4 { S7_SetPoint := 'True'} : Bool := false;
+      statFaultCond2 { S7_SetPoint := 'True'} : Bool := FALSE;
+      statFaultCond3 { S7_SetPoint := 'True'} : Bool := FALSE;
+      statFaultCond4 { S7_SetPoint := 'True'} : Bool := FALSE;
       statFaultModeCond : Bool;
    END_VAR
 
@@ -137,7 +137,7 @@ BEGIN
 	    #statSwitchControl := #inCmdOper.%X6;
 	    
 	    //Operator Control Word Impulses
-	    #trigGlobalReset(CLK:=#inGlobalAckFault);
+	    #trigGlobalReset(CLK := #inGlobalAckFault);
 	    
 	    #statFaultReset := #trigGlobalReset.Q OR #inCmdOperImp.%X0;
 	    
@@ -150,7 +150,7 @@ BEGIN
 	        #statTurnOn := #inTurnOn;
 	        #statTurnOnConfirm := #inTurnOnConfirm;
 	        #statTurnOffConfirm := #inTurnOffConfirm;
-	        #statReady := #inCircBreaker AND #inPTC AND #inReadySpare AND #inReadySpare2 ;
+	        #statReady := #inCircBreaker AND #inPTC AND #inReadySpare AND #inReadySpare2;
 	        #statLocal := #inLocalMode;
 	        #statRemote := #inRemoteMode;
 	        #statExtFault := #inExtFault;
@@ -177,7 +177,7 @@ BEGIN
 	        #statTurnOn := #inSimOper.%X1;
 	        #statTurnOnConfirm := #inSimOper.%X2;
 	        #statTurnOffConfirm := #inSimOper.%X3;
-	        #statReady:= #inSimOper.%X4;
+	        #statReady := #inSimOper.%X4;
 	        #statLocal := #inSimOper.%X5;
 	        #statRemote := #inSimOper.%X6;
 	        #statExtFault := #inSimOper.%X7;
@@ -209,7 +209,7 @@ BEGIN
 	        #statControlMode := #MODE_AUTO;
 	        
 	    END_IF;
-	
+	    
 	END_REGION
 	
 	REGION TurnOn/Off Delay
@@ -232,7 +232,7 @@ BEGIN
 	        
 	    END_IF;
 	END_REGION
-	                  
+	
 	REGION Fault 
 	    //Zerowanie czasu awari przy zmianie sterowanie podczas ruchu - czy to w ogole cokolwiek robi???
 	    
@@ -340,25 +340,36 @@ BEGIN
 	    
 	END_REGION
 	
-	REGION Control output
+	REGION Control and Direction output
 	    
-	    #statControl :=
-	    #statSwitchEnable AND
-	    NOT #statInterlock AND
-	    NOT #statFault AND
-	    ((#statControlMode = #MODE_AUTO AND #statTmrOnOff) OR
-	    (#statControlMode = #MODE_MANUAL AND #statManTurnOn));
+	    IF #statSwitchControl AND NOT #statInterlock AND NOT #statFault THEN
+	        
+	        IF #statControlMode = #MODE_AUTO THEN
+	            
+	            #statControl := #statTmrOnOff;
+	            #oControlDirection := #statDirection;
+	            
+	        ELSIF #statControlMode = #MODE_MANUAL THEN
+	            
+	            #statControl := #statManTurnOn;
+	            #oControlDirection := #statManDirection;
+	            
+	        ELSE
+	            
+	            #statControl := FALSE;
+	            #oControlDirection := FALSE;
+	            
+	        END_IF;
+	        
+	    ELSE
+	        
+	        #statControl := FALSE;
+	        #oControlDirection := FALSE;
+	        
+	    END_IF;
 	    
 	END_REGION
 	
-	REGION Control Direction Output
-	    
-	    #oControlDirection :=
-	    #statSwitchEnable AND
-	    ((#statControlMode = #MODE_AUTO AND #statDirection) OR
-	    (#statControlMode = #MODE_MANUAL AND #statManDirection));
-	    
-	END_REGION
 	
 	REGION Reset Control
 	    
@@ -371,7 +382,7 @@ BEGIN
 	    IF #statFault THEN
 	        #oStatus := #STATUS_FAULT;
 	    ELSE
-	    
+	        
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
 	                #oStatus := #STATUS_OFF;
