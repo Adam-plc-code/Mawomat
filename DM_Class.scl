@@ -17,37 +17,19 @@ VERSION : 0.1
       inGlobalAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Globalny reset
       inAutoOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Resetowanie sterowania na końcu
    END_VAR
-   VAR_INPUT RETAIN
-      inTurnOnDelay : DInt;   // Czas opóźnienia załączenia [s]
-      inTurnOffDelay : DInt;   // Czas opóźnienia wyłączenia [s]
-      inAlarmDelay : DInt;   // Czas opóźnienia alarmu od potwierdzeń [s]
-   END_VAR
 
    VAR_OUTPUT 
       oControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście sterujące
       oControlDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście strujące kierunkiem obrotów
       oAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście reset obiektu
       oFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście awaria
-      oFaultCode : Byte;   // Kod awarii
-      oStatusCode : Word;   // Kod statusu
-      oStatus : Int;   // Status ( 1-awaria; 2-Wył; 4-Załączanie; 8-Zał; 16-Wyłączanie)
-      oControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
    END_VAR
 
    VAR_IN_OUT 
       inTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączanie z programu
-   END_VAR
-   VAR_IN_OUT RETAIN
-      inCmdOper : Word := 16#0005;   // Komendy manualne
-      inSimOper : Word;   // Komendy symulacji
-   END_VAR
-   VAR_IN_OUT 
-      inCmdOperImp : Word;   // Komendy impulsowe
+      HMI : "DMHMI";
    END_VAR
 
-   VAR RETAIN
-      sDeactivateObject { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Deaktywowanie działania obiektu
-   END_VAR
    VAR 
       statReady { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statManAuto { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
@@ -76,11 +58,11 @@ VERSION : 0.1
       statControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statTmrOnOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       trigGlobalReset {InstructionName := 'R_TRIG'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : R_TRIG;
-      statFaultCond1 { S7_SetPoint := 'True'} : Bool;
-      statFaultCond2 { S7_SetPoint := 'True'} : Bool := FALSE;
-      statFaultCond3 { S7_SetPoint := 'True'} : Bool := FALSE;
-      statFaultCond4 { S7_SetPoint := 'True'} : Bool := FALSE;
-      statFaultModeCond : Bool;
+      statFaultCond1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statFaultCond2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultCond3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultCond4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultModeCond { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
    END_VAR
 
    VAR CONSTANT 
@@ -99,47 +81,25 @@ VERSION : 0.1
 BEGIN
 	// ================================
 	// Author: Adam
-	// Version: 1.1
+	// Version: 1.3
 	// Date: 2025-05-05
 	// Description: Motor control class for TIA Portal
 	// ================================
 	
-	REGION Activation object - condition to execute function
-	    IF #sDeactivateObject THEN
-	        #inTurnOn := FALSE;
-	        #inCmdOper := 0;
-	        #inSimOper := 0;
-	        #inCmdOperImp := 0;
-	        
-	        #oControl := FALSE;
-	        #oControlDirection := FALSE;
-	        #oAckFault := FALSE;
-	        #oFault := FALSE;
-	        #oFaultCode := 0;
-	        #oStatusCode := 0;
-	        #oStatus := 0;
-	        #oControlMode := 0;
-	        
-	        RETURN;
-	        
-	    END_IF;
-	    
-	END_REGION
-	
 	REGION Rewriting inputs
 	    
 	    //Operator Control Word
-	    #statManAuto := #inCmdOper.%X0;
-	    #statSymOn := #inCmdOper.%X1;
-	    #statSwitchEnable := #inCmdOper.%X2;
-	    #statManTurnOn := #inCmdOper.%X3;
-	    #statManDirection := #inCmdOper.%X4;
-	    #statSwitchControl := #inCmdOper.%X6;
+	    #statManAuto := #HMI.CmdOper.%X0;
+	    #statSymOn := #HMI.CmdOper.%X1;
+	    #statSwitchEnable := #HMI.CmdOper.%X2;
+	    #statManTurnOn := #HMI.CmdOper.%X3;
+	    #statManDirection := #HMI.CmdOper.%X4;
+	    #statSwitchControl := #HMI.CmdOper.%X6;
 	    
 	    //Operator Control Word Impulses
 	    #trigGlobalReset(CLK := #inGlobalAckFault);
 	    
-	    #statFaultReset := #trigGlobalReset.Q OR #inCmdOperImp.%X0;
+	    #statFaultReset := #trigGlobalReset.Q OR #HMI.CmdOper.%X7;
 	    
 	END_REGION
 	
@@ -159,31 +119,31 @@ BEGIN
 	        #statDirection := #inDirection;
 	        
 	        //Rewriting inputs to simulation bits when simulotion is to switch fluently
-	        #inSimOper.%X0 := #statActivate;
-	        #inSimOper.%X1 := #statTurnOn;
-	        #inSimOper.%X2 := #statTurnOnConfirm;
-	        #inSimOper.%X3 := #statTurnOffConfirm;
-	        #inSimOper.%X4 := #statReady;
-	        #inSimOper.%X5 := #statLocal;
-	        #inSimOper.%X6 := #statRemote;
-	        #inSimOper.%X7 := #statExtFault;
-	        #inSimOper.%X8 := #statLockAutoMan;
-	        #inSimOper.%X9 := #statInterlock;
-	        #inSimOper.%X10 := #statDirection;
+	        #HMI.SimOper.%X0 := #statActivate;
+	        #HMI.SimOper.%X1 := #statTurnOn;
+	        #HMI.SimOper.%X2 := #statTurnOnConfirm;
+	        #HMI.SimOper.%X3 := #statTurnOffConfirm;
+	        #HMI.SimOper.%X4 := #statReady;
+	        #HMI.SimOper.%X5 := #statLocal;
+	        #HMI.SimOper.%X6 := #statRemote;
+	        #HMI.SimOper.%X7 := #statExtFault;
+	        #HMI.SimOper.%X8 := #statLockAutoMan;
+	        #HMI.SimOper.%X9 := #statInterlock;
+	        #HMI.SimOper.%X10 := #statDirection;
 	        
 	    ELSE
 	        
-	        #statActivate := #inSimOper.%X0;
-	        #statTurnOn := #inSimOper.%X1;
-	        #statTurnOnConfirm := #inSimOper.%X2;
-	        #statTurnOffConfirm := #inSimOper.%X3;
-	        #statReady := #inSimOper.%X4;
-	        #statLocal := #inSimOper.%X5;
-	        #statRemote := #inSimOper.%X6;
-	        #statExtFault := #inSimOper.%X7;
-	        #statLockAutoMan := #inSimOper.%X8;
-	        #statInterlock := #inSimOper.%X9;
-	        #statDirection := #inSimOper.%X10;
+	        #statActivate := #HMI.SimOper.%X0;
+	        #statTurnOn := #HMI.SimOper.%X1;
+	        #statTurnOnConfirm := #HMI.SimOper.%X2;
+	        #statTurnOffConfirm := #HMI.SimOper.%X3;
+	        #statReady := #HMI.SimOper.%X4;
+	        #statLocal := #HMI.SimOper.%X5;
+	        #statRemote := #HMI.SimOper.%X6;
+	        #statExtFault := #HMI.SimOper.%X7;
+	        #statLockAutoMan := #HMI.SimOper.%X8;
+	        #statInterlock := #HMI.SimOper.%X9;
+	        #statDirection := #HMI.SimOper.%X10;
 	        
 	    END_IF;
 	    
@@ -215,10 +175,10 @@ BEGIN
 	REGION TurnOn/Off Delay
 	    
 	    #tofTurnOnDelay(IN := #statTurnOn,
-	                    PT := 1000 * #inTurnOnDelay);
+	                    PT := 1000 * #HMI.TurnOnDelay);
 	    
 	    #tofTurnOffDelay(IN := #statTurnOn,
-	                     PT := 1000 * #inTurnOffDelay);
+	                     PT := 1000 * #HMI.TurnOffDelay);
 	    
 	    IF #tofTurnOnDelay.Q THEN
 	        
@@ -234,7 +194,6 @@ BEGIN
 	END_REGION
 	
 	REGION Fault 
-	    //Zerowanie czasu awari przy zmianie sterowanie podczas ruchu - czy to w ogole cokolwiek robi???
 	    
 	    #statFaultModeCond :=
 	    #statSwitchControl AND //is switch controling on
@@ -255,10 +214,9 @@ BEGIN
 	    #statFaultCond3 OR
 	    #statFaultCond4);
 	    
-	    //#tonAlarm.PT := DINT_TO_TIME(1000 * #AlarmDelay);
 	    //Generating switching alarm after delay
 	    #tonAlarm(IN := #statAlarmStart,
-	              PT := DINT_TO_TIME(1000 * #inAlarmDelay));
+	              PT := DINT_TO_TIME(1000 * #HMI.AlarmDelay));
 	    
 	    
 	    //Generating fault
@@ -272,21 +230,14 @@ BEGIN
 	        
 	    END_IF;
 	    
-	    //Fault reset 
-	    // IF #statFaultReset THEN
-	    //     #statFault := FALSE;
-	    
-	    
-	    // END_IF;
-	    
 	    //Fault code
-	    #oFaultCode.%X0 := #tonAlarm.Q;
-	    #oFaultCode.%X1 := NOT #statReady;
-	    #oFaultCode.%X2 := #statExtFault;
-	    #oFaultCode.%X3 := NOT #inCircBreaker;
-	    #oFaultCode.%X4 := NOT #inPTC;
-	    #oFaultCode.%X5 := NOT #inReadySpare;
-	    #oFaultCode.%X6 := NOT #inReadySpare2;
+	    #HMI.FaultCode.%X0 := #tonAlarm.Q;
+	    #HMI.FaultCode.%X1 := NOT #statReady;
+	    #HMI.FaultCode.%X2 := #statExtFault;
+	    #HMI.FaultCode.%X3 := NOT #inCircBreaker;
+	    #HMI.FaultCode.%X4 := NOT #inPTC;
+	    #HMI.FaultCode.%X5 := NOT #inReadySpare;
+	    #HMI.FaultCode.%X6 := NOT #inReadySpare2;
 	    
 	END_REGION
 	
@@ -380,42 +331,42 @@ BEGIN
 	REGION Device status code
 	    
 	    IF #statFault THEN
-	        #oStatus := #STATUS_FAULT;
+	        #HMI.Status := #STATUS_FAULT;
 	    ELSE
 	        
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
-	                #oStatus := #STATUS_OFF;
+	                #HMI.Status := #STATUS_OFF;
 	            #MODE_LOCAL:
 	                IF #statTurnOnConfirm THEN
-	                    #oStatus := #STATUS_ON;
+	                    #HMI.Status := #STATUS_ON;
 	                ELSIF #statTurnOffConfirm THEN
-	                    #oStatus := #STATUS_OFF;
+	                    #HMI.Status := #STATUS_OFF;
 	                ELSIF #statControl THEN
-	                    #oStatus := #STATUS_STARTING;
+	                    #HMI.Status := #STATUS_STARTING;
 	                ELSIF NOT #statControl THEN
-	                    #oStatus := #STATUS_STOPPING;
+	                    #HMI.Status := #STATUS_STOPPING;
 	                END_IF;
 	            #MODE_MANUAL, #MODE_AUTO:
 	                IF #statSwitchControl AND #statSwitchEnable THEN
 	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
-	                        #oStatus := #STATUS_ON;
+	                        #HMI.Status := #STATUS_ON;
 	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
-	                        #oStatus := #STATUS_OFF;
+	                        #HMI.Status := #STATUS_OFF;
 	                    ELSIF #statControl THEN
-	                        #oStatus := #STATUS_STARTING;
+	                        #HMI.Status := #STATUS_STARTING;
 	                    ELSIF NOT #statControl THEN
-	                        #oStatus := #STATUS_STOPPING;
+	                        #HMI.Status := #STATUS_STOPPING;
 	                    END_IF;
 	                ELSE
 	                    IF #statControl THEN
-	                        #oStatus := #STATUS_ON;
+	                        #HMI.Status := #STATUS_ON;
 	                    ELSIF NOT #statControl THEN
-	                        #oStatus := #STATUS_OFF;
+	                        #HMI.Status := #STATUS_OFF;
 	                    END_IF;
 	                END_IF;
 	            ELSE
-	                #oStatus := #STATUS_FAULT;
+	                #HMI.Status := #STATUS_FAULT;
 	        END_CASE;
 	        
 	    END_IF;
@@ -442,16 +393,15 @@ BEGIN
 	
 	REGION Rewriting TO outputs
 	    
-	    #inCmdOper.%X0 := #statManAuto;
-	    #inCmdOper.%X1 := #statSymOn;
-	    #inCmdOper.%X2 := #statSwitchEnable;
-	    #inCmdOper.%X3 := #statManTurnOn;
-	    #inCmdOper.%X4 := #statManDirection;
-	    #inCmdOper.%X6 := #statSwitchControl;
+	    #HMI.CmdOper.%X0 := #statManAuto;
+	    #HMI.CmdOper.%X1 := #statSymOn;
+	    #HMI.CmdOper.%X2 := #statSwitchEnable;
+	    #HMI.CmdOper.%X3 := #statManTurnOn;
+	    #HMI.CmdOper.%X4 := #statManDirection;
+	    #HMI.CmdOper.%X6 := #statSwitchControl;
+	    #HMI.CmdOper.%X7 := #statFaultReset;
 	    
-	    #inCmdOperImp.%X0 := #statFaultReset;
-	    
-	    #oControlMode := #statControlMode;
+	    #HMI.ControlMode := #statControlMode;
 	    
 	    #oFault := #statFault;
 	    
