@@ -339,14 +339,11 @@ BEGIN
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
 	                #HMI.Status := #STATUS_OFF;
-	                #oTurnedOff := TRUE;
 	            #MODE_LOCAL:
 	                IF #statTurnOnConfirm THEN
 	                    #HMI.Status := #STATUS_ON;
-	                    #oTurnedOn := TRUE;
 	                ELSIF #statTurnOffConfirm THEN
 	                    #HMI.Status := #STATUS_OFF;
-	                    #oTurnedOff := TRUE;
 	                ELSIF #statControl THEN
 	                    #HMI.Status := #STATUS_STARTING;
 	                ELSIF NOT #statControl THEN
@@ -356,10 +353,8 @@ BEGIN
 	                IF #statSwitchControl AND #statSwitchEnable THEN
 	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
 	                        #HMI.Status := #STATUS_ON;
-	                        #oTurnedOn := TRUE;
 	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
 	                        #HMI.Status := #STATUS_OFF;
-	                        #oTurnedOff := TRUE;
 	                    ELSIF #statControl THEN
 	                        #HMI.Status := #STATUS_STARTING;
 	                    ELSIF NOT #statControl THEN
@@ -368,17 +363,29 @@ BEGIN
 	                ELSE
 	                    IF #statControl THEN
 	                        #HMI.Status := #STATUS_ON;
-	                        #oTurnedOn := TRUE;
 	                    ELSIF NOT #statControl THEN
 	                        #HMI.Status := #STATUS_OFF;
-	                        #oTurnedOff := TRUE;
 	                    END_IF;
 	                END_IF;
 	            ELSE
 	                #HMI.Status := #STATUS_FAULT;
 	        END_CASE;
 	        
+	       
+	        
 	    END_IF;
+	    
+	    CASE #HMI.Status OF
+	        #STATUS_ON:
+	            #oTurnedOn := TRUE;
+	            #oTurnedOff := FALSE;
+	        #STATUS_OFF:
+	            #oTurnedOff := TRUE;
+	            #oTurnedOn := FALSE;
+	        ELSE
+	            #oTurnedOn := FALSE;
+	            #oTurnedOff := FALSE;
+	    END_CASE;
 	    
 	END_REGION ;
 	
