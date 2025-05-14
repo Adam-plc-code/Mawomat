@@ -402,11 +402,6 @@ BEGIN
 	    
 	END_REGION ;
 	
-	REGION Status code
-	    
-	    
-	END_REGION
-	
 	REGION Rewriting TO outputs
 	    
 	    #HMI.CmdOper.%X0 := #statManAuto;
