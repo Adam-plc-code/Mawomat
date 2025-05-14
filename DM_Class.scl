@@ -295,7 +295,7 @@ BEGIN
 	
 	REGION Control and Direction output
 	    
-	    IF #statSwitchControl AND NOT #statInterlock AND NOT #statFault THEN
+	    IF #statSwitchEnable AND NOT #statInterlock AND NOT #statFault THEN
 	        
 	        IF #statControlMode = #MODE_AUTO THEN
 	            
