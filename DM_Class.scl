@@ -23,6 +23,8 @@ VERSION : 0.1
       oControlDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście strujące kierunkiem obrotów
       oAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście reset obiektu
       oFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście awaria
+      oTurnedOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączone
+      oTurnedOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyłączone
    END_VAR
 
    VAR_IN_OUT 
@@ -337,11 +339,14 @@ BEGIN
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
 	                #HMI.Status := #STATUS_OFF;
+	                #oTurnedOff := TRUE;
 	            #MODE_LOCAL:
 	                IF #statTurnOnConfirm THEN
 	                    #HMI.Status := #STATUS_ON;
+	                    #oTurnedOn := TRUE;
 	                ELSIF #statTurnOffConfirm THEN
 	                    #HMI.Status := #STATUS_OFF;
+	                    #oTurnedOff := TRUE;
 	                ELSIF #statControl THEN
 	                    #HMI.Status := #STATUS_STARTING;
 	                ELSIF NOT #statControl THEN
@@ -351,8 +356,10 @@ BEGIN
 	                IF #statSwitchControl AND #statSwitchEnable THEN
 	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
 	                        #HMI.Status := #STATUS_ON;
+	                        #oTurnedOn := TRUE;
 	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
 	                        #HMI.Status := #STATUS_OFF;
+	                        #oTurnedOff := TRUE;
 	                    ELSIF #statControl THEN
 	                        #HMI.Status := #STATUS_STARTING;
 	                    ELSIF NOT #statControl THEN
@@ -361,8 +368,10 @@ BEGIN
 	                ELSE
 	                    IF #statControl THEN
 	                        #HMI.Status := #STATUS_ON;
+	                        #oTurnedOn := TRUE;
 	                    ELSIF NOT #statControl THEN
 	                        #HMI.Status := #STATUS_OFF;
+	                        #oTurnedOff := TRUE;
 	                    END_IF;
 	                END_IF;
 	            ELSE
