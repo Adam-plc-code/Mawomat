@@ -1,4 +1,19 @@
-﻿FUNCTION_BLOCK "DM_Class"
+﻿TYPE "Object"
+VERSION : 0.1
+   STRUCT
+      paramTurnOnDelay : DInt;   // Czas opóźnienia załączenia [s]
+      paramTurnOffDelay : DInt;   // Czas opóźnienia wyłączenia [s]
+      paramAlarmDelay : DInt;   // Czas opóźnienia alarmu od potwierdzeń [s]
+      paramCmdOper : Word := 16#0005;   // Komendy manualne
+      paramSimOper : Word;   // Komendy symulacji
+      statusFaultCode : Byte;   // Kod awarii
+      statusStatus : Int;   // Status ( 1-awaria; 2-Wył; 4-Załączanie; 8-Zał; 16-Wyłączanie)
+      statusControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "DM_Class"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
    VAR_INPUT 
@@ -29,7 +44,7 @@ VERSION : 0.1
 
    VAR_IN_OUT 
       inTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączanie z programu
-      HMI : "DMHMI";
+      Object : "Object";
    END_VAR
 
    VAR 
@@ -91,17 +106,17 @@ BEGIN
 	REGION Rewriting inputs
 	    
 	    //Operator Control Word
-	    #statManAuto := #HMI.CmdOper.%X0;
-	    #statSymOn := #HMI.CmdOper.%X1;
-	    #statSwitchEnable := #HMI.CmdOper.%X2;
-	    #statManTurnOn := #HMI.CmdOper.%X3;
-	    #statManDirection := #HMI.CmdOper.%X4;
-	    #statSwitchControl := #HMI.CmdOper.%X6;
+	    #statManAuto := #"Object".paramCmdOper.%X0;
+	    #statSymOn := #"Object".paramCmdOper.%X1;
+	    #statSwitchEnable := #"Object".paramCmdOper.%X2;
+	    #statManTurnOn := #"Object".paramCmdOper.%X3;
+	    #statManDirection := #"Object".paramCmdOper.%X4;
+	    #statSwitchControl := #"Object".paramCmdOper.%X6;
 	    
 	    //Operator Control Word Impulses
 	    #trigGlobalReset(CLK := #inGlobalAckFault);
 	    
-	    #statFaultReset := #trigGlobalReset.Q OR #HMI.CmdOper.%X7;
+	    #statFaultReset := #trigGlobalReset.Q OR #"Object".paramCmdOper.%X7;
 	    
 	END_REGION
 	
@@ -121,31 +136,31 @@ BEGIN
 	        #statDirection := #inDirection;
 	        
 	        //Rewriting inputs to simulation bits when simulotion is to switch fluently
-	        #HMI.SimOper.%X0 := #statActivate;
-	        #HMI.SimOper.%X1 := #statTurnOn;
-	        #HMI.SimOper.%X2 := #statTurnOnConfirm;
-	        #HMI.SimOper.%X3 := #statTurnOffConfirm;
-	        #HMI.SimOper.%X4 := #statReady;
-	        #HMI.SimOper.%X5 := #statLocal;
-	        #HMI.SimOper.%X6 := #statRemote;
-	        #HMI.SimOper.%X7 := #statExtFault;
-	        #HMI.SimOper.%X8 := #statLockAutoMan;
-	        #HMI.SimOper.%X9 := #statInterlock;
-	        #HMI.SimOper.%X10 := #statDirection;
+	        #"Object".paramSimOper.%X0 := #statActivate;
+	        #"Object".paramSimOper.%X1 := #statTurnOn;
+	        #"Object".paramSimOper.%X2 := #statTurnOnConfirm;
+	        #"Object".paramSimOper.%X3 := #statTurnOffConfirm;
+	        #"Object".paramSimOper.%X4 := #statReady;
+	        #"Object".paramSimOper.%X5 := #statLocal;
+	        #"Object".paramSimOper.%X6 := #statRemote;
+	        #"Object".paramSimOper.%X7 := #statExtFault;
+	        #"Object".paramSimOper.%X8 := #statLockAutoMan;
+	        #"Object".paramSimOper.%X9 := #statInterlock;
+	        #"Object".paramSimOper.%X10 := #statDirection;
 	        
 	    ELSE
 	        
-	        #statActivate := #HMI.SimOper.%X0;
-	        #statTurnOn := #HMI.SimOper.%X1;
-	        #statTurnOnConfirm := #HMI.SimOper.%X2;
-	        #statTurnOffConfirm := #HMI.SimOper.%X3;
-	        #statReady := #HMI.SimOper.%X4;
-	        #statLocal := #HMI.SimOper.%X5;
-	        #statRemote := #HMI.SimOper.%X6;
-	        #statExtFault := #HMI.SimOper.%X7;
-	        #statLockAutoMan := #HMI.SimOper.%X8;
-	        #statInterlock := #HMI.SimOper.%X9;
-	        #statDirection := #HMI.SimOper.%X10;
+	        #statActivate := #"Object".paramSimOper.%X0;
+	        #statTurnOn := #"Object".paramSimOper.%X1;
+	        #statTurnOnConfirm := #"Object".paramSimOper.%X2;
+	        #statTurnOffConfirm := #"Object".paramSimOper.%X3;
+	        #statReady := #"Object".paramSimOper.%X4;
+	        #statLocal := #"Object".paramSimOper.%X5;
+	        #statRemote := #"Object".paramSimOper.%X6;
+	        #statExtFault := #"Object".paramSimOper.%X7;
+	        #statLockAutoMan := #"Object".paramSimOper.%X8;
+	        #statInterlock := #"Object".paramSimOper.%X9;
+	        #statDirection := #"Object".paramSimOper.%X10;
 	        
 	    END_IF;
 	    
@@ -177,10 +192,10 @@ BEGIN
 	REGION TurnOn/Off Delay
 	    
 	    #tofTurnOnDelay(IN := #statTurnOn,
-	                    PT := 1000 * #HMI.TurnOnDelay);
+	                    PT := 1000 * #"Object".paramTurnOnDelay);
 	    
 	    #tofTurnOffDelay(IN := #statTurnOn,
-	                     PT := 1000 * #HMI.TurnOffDelay);
+	                     PT := 1000 * #"Object".paramTurnOffDelay);
 	    
 	    IF #tofTurnOnDelay.Q THEN
 	        
@@ -218,7 +233,7 @@ BEGIN
 	    
 	    //Generating switching alarm after delay
 	    #tonAlarm(IN := #statAlarmStart,
-	              PT := DINT_TO_TIME(1000 * #HMI.AlarmDelay));
+	              PT := DINT_TO_TIME(1000 * #"Object".paramAlarmDelay));
 	    
 	    
 	    //Generating fault
@@ -233,13 +248,13 @@ BEGIN
 	    END_IF;
 	    
 	    //Fault code
-	    #HMI.FaultCode.%X0 := #tonAlarm.Q;
-	    #HMI.FaultCode.%X1 := NOT #statReady;
-	    #HMI.FaultCode.%X2 := #statExtFault;
-	    #HMI.FaultCode.%X3 := NOT #inCircBreaker;
-	    #HMI.FaultCode.%X4 := NOT #inPTC;
-	    #HMI.FaultCode.%X5 := NOT #inReadySpare;
-	    #HMI.FaultCode.%X6 := NOT #inReadySpare2;
+	    #"Object".statusFaultCode.%X0 := #tonAlarm.Q;
+	    #"Object".statusFaultCode.%X1 := NOT #statReady;
+	    #"Object".statusFaultCode.%X2 := #statExtFault;
+	    #"Object".statusFaultCode.%X3 := NOT #inCircBreaker;
+	    #"Object".statusFaultCode.%X4 := NOT #inPTC;
+	    #"Object".statusFaultCode.%X5 := NOT #inReadySpare;
+	    #"Object".statusFaultCode.%X6 := NOT #inReadySpare2;
 	    
 	END_REGION
 	
@@ -333,49 +348,49 @@ BEGIN
 	REGION Device status code
 	    
 	    IF #statFault THEN
-	        #HMI.Status := #STATUS_FAULT;
+	        #"Object".statusStatus := #STATUS_FAULT;
 	    ELSE
 	        
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
-	                #HMI.Status := #STATUS_OFF;
+	                #"Object".statusStatus := #STATUS_OFF;
 	            #MODE_LOCAL:
 	                IF #statTurnOnConfirm THEN
-	                    #HMI.Status := #STATUS_ON;
+	                    #"Object".statusStatus := #STATUS_ON;
 	                ELSIF #statTurnOffConfirm THEN
-	                    #HMI.Status := #STATUS_OFF;
+	                    #"Object".statusStatus := #STATUS_OFF;
 	                ELSIF #statControl THEN
-	                    #HMI.Status := #STATUS_STARTING;
+	                    #"Object".statusStatus := #STATUS_STARTING;
 	                ELSIF NOT #statControl THEN
-	                    #HMI.Status := #STATUS_STOPPING;
+	                    #"Object".statusStatus := #STATUS_STOPPING;
 	                END_IF;
 	            #MODE_MANUAL, #MODE_AUTO:
 	                IF #statSwitchControl AND #statSwitchEnable THEN
 	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
-	                        #HMI.Status := #STATUS_ON;
+	                        #"Object".statusStatus := #STATUS_ON;
 	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
-	                        #HMI.Status := #STATUS_OFF;
+	                        #"Object".statusStatus := #STATUS_OFF;
 	                    ELSIF #statControl THEN
-	                        #HMI.Status := #STATUS_STARTING;
+	                        #"Object".statusStatus := #STATUS_STARTING;
 	                    ELSIF NOT #statControl THEN
-	                        #HMI.Status := #STATUS_STOPPING;
+	                        #"Object".statusStatus := #STATUS_STOPPING;
 	                    END_IF;
 	                ELSE
 	                    IF #statControl THEN
-	                        #HMI.Status := #STATUS_ON;
+	                        #"Object".statusStatus := #STATUS_ON;
 	                    ELSIF NOT #statControl THEN
-	                        #HMI.Status := #STATUS_OFF;
+	                        #"Object".statusStatus := #STATUS_OFF;
 	                    END_IF;
 	                END_IF;
 	            ELSE
-	                #HMI.Status := #STATUS_FAULT;
+	                #"Object".statusStatus := #STATUS_FAULT;
 	        END_CASE;
 	        
-	       
+	        
 	        
 	    END_IF;
 	    
-	    CASE #HMI.Status OF
+	    CASE #"Object".statusStatus OF
 	        #STATUS_ON:
 	            #oTurnedOn := TRUE;
 	            #oTurnedOff := FALSE;
@@ -404,15 +419,15 @@ BEGIN
 	
 	REGION Rewriting TO outputs
 	    
-	    #HMI.CmdOper.%X0 := #statManAuto;
-	    #HMI.CmdOper.%X1 := #statSymOn;
-	    #HMI.CmdOper.%X2 := #statSwitchEnable;
-	    #HMI.CmdOper.%X3 := #statManTurnOn;
-	    #HMI.CmdOper.%X4 := #statManDirection;
-	    #HMI.CmdOper.%X6 := #statSwitchControl;
-	    #HMI.CmdOper.%X7 := #statFaultReset;
+	    #"Object".paramCmdOper.%X0 := #statManAuto;
+	    #"Object".paramCmdOper.%X1 := #statSymOn;
+	    #"Object".paramCmdOper.%X2 := #statSwitchEnable;
+	    #"Object".paramCmdOper.%X3 := #statManTurnOn;
+	    #"Object".paramCmdOper.%X4 := #statManDirection;
+	    #"Object".paramCmdOper.%X6 := #statSwitchControl;
+	    #"Object".paramCmdOper.%X7 := #statFaultReset;
 	    
-	    #HMI.ControlMode := #statControlMode;
+	    #"Object".statusControlMode := #statControlMode;
 	    
 	    #oFault := #statFault;
 	    
