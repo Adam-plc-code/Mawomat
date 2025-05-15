@@ -49,6 +49,7 @@ VERSION : 5.1
    VAR_INPUT 
       EnableAxis : Bool := 0;   // 0-->1; 1 = Enable the drive (OFF2 / OFF 3 are 1 in default status) (OFF1 = 0-->1)
       AckError : Bool := 0;   // 1 = Acknowledge drive error
+      ReverseDirection : Bool;   // 1 = Direction reversal
       SpeedSp : Real := 0.0;   // Speed standardises with the standardisation factor
       RefSpeed : Real := 0.0;   // Standardisation factor of speed
       ConfigAxis : Word := 16#003F;   // binary programmed input to control all functions in the telegram without its own function block input
@@ -57,6 +58,7 @@ VERSION : 5.1
    END_VAR
 
    VAR_OUTPUT 
+      Ready : Bool;   // 1 = Ready to turn on
       AxisEnabled : Bool := 0;   // 1 = Drive is enabled
       Lockout : Bool := 0;   // 1 = Drive lockout active
       ActVelocity : Real := 0.0;   // Actual in [U/min]
@@ -106,6 +108,14 @@ BEGIN
 	//                SINAMICS
 	//=============================================================================
 	
+	// ================================
+	// Author: Adam
+	// Version: 1.0
+	// Date: 2025-05-15
+	// Description: Sinamics
+	// Dorobione wejscie ReverseDirection, wyjscie Ready
+	// ================================
+	// 
 	// Schreibdaten zusammenstellen
 	// Steuerword aufbereiten
 	
@@ -120,7 +130,7 @@ BEGIN
 	#sxSendBuf.STW1.%X8 := #ConfigAxis.%X10;
 	#sxSendBuf.STW1.%X9 := #ConfigAxis.%X11;
 	#sxSendBuf.STW1.%X10 := TRUE;
-	#sxSendBuf.STW1.%X11 := #ConfigAxis.%X6;
+	#sxSendBuf.STW1.%X11 := #ReverseDirection;
 	#sxSendBuf.STW1.%X12 := #ConfigAxis.%X7;
 	#sxSendBuf.STW1.%X13 := #ConfigAxis.%X8;
 	#sxSendBuf.STW1.%X14 := #ConfigAxis.%X9;
@@ -218,6 +228,7 @@ BEGIN
 	    
 	    // ZSW1 aufbereiten                       
 	    #AxisEnabled := #sxRecvBuf.ZSW1.%X2;
+	    #Ready := #sxRecvBuf.ZSW1.%X1;
 	    #Error := #sxRecvBuf.ZSW1.%X3 OR #sxRecvBuf.ZSW1.%X6;
 	    #Lockout := #sxRecvBuf.ZSW1.%X6;
 	    
