@@ -1,0 +1,169 @@
+﻿FUNCTION_BLOCK "Sequencer"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      inStart : Bool;
+      inNexStepNb : Int;
+      inManualMode : Bool;
+      inSimulationMode : Bool;
+      inStepStartTime : Int := 10;
+      inStepEndTime : Int := 10;
+   END_VAR
+
+   VAR_OUTPUT 
+      outStepNb : Int;
+      outStepStart : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      inStepEnd : Bool;
+      inManualStepNb : Int;
+      inManualStepUp : Bool;
+      inManualStepDown : Bool;
+   END_VAR
+
+   VAR 
+      sStepNb : Int;
+      sStepNbOld : Int;
+      sStepNbPrevious : Int;
+      sStepStartTime : Time;
+      sStepEndTime : Time;
+      sStepStart { S7_SetPoint := 'True'} : Bool;
+      tonStepStart {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      tonStepEnd {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+   END_VAR
+
+   VAR_TEMP 
+      tIntToStartTime : DInt;
+      tIntToEndTime : DInt;
+   END_VAR
+
+
+BEGIN
+	IF #inStart THEN
+	    
+	    REGION Operating Mode
+	        
+	        IF #inManualMode THEN
+	            
+	            #sStepNb := #inManualStepNb;
+	            
+	            REGION Step +/- 1
+	                
+	                IF #inManualStepUp THEN
+	                    
+	                    #sStepNb := #inNexStepNb;
+	                    
+	                ELSIF #inManualStepDown THEN
+	                    
+	                    #sStepNb := #sStepNbPrevious;
+	                    
+	                END_IF;
+	                
+	            END_REGION
+	            
+	        ELSE
+	            
+	             IF #sStepNb = 0 THEN
+	                
+	                 #sStepNb := 1;
+	                
+	            ELSIF #tonStepEnd.Q THEN
+	                
+	                #sStepNb := #inNexStepNb;
+	                #inStepEnd := FALSE;
+	                
+	            END_IF;
+	            
+	        END_IF;
+	        
+	    END_REGION
+	    
+	ELSE
+	    
+	    #sStepNb := 0;
+	    #inStepEnd := FALSE;
+	    
+	END_IF;
+	
+	REGION Step Start 
+	    
+	    IF #inStart AND #sStepNb<>#sStepNbOld OR NOT #inStart THEN
+	        
+	        #sStepStart := FALSE;
+	    ELSE
+	        
+	        #sStepStart := TRUE;
+	        
+	    END_IF;
+	    
+	    
+	END_REGION
+	
+	
+	    REGION Rewriting time start/end step to timer
+	        
+	        //Czas poczatku i konca kroku zdefiniowany dla calej sekwencji
+	        //Mozna go nadpisywac w krokach 
+	        #tIntToStartTime := 1000 * #inStepStartTime;
+	        #tIntToEndTime := 1000 * #inStepEndTime;
+	        
+	        #sStepStartTime := DINT_TO_TIME(#tIntToStartTime);
+	        #sStepEndTime := DINT_TO_TIME(#tIntToEndTime);
+	        
+	    END_REGION
+	   
+	REGION Step start/end delay timers
+	    
+	    REGION Step start timer
+	        
+	        #tonStepStart(IN := #sStepStart,
+	                      PT := #sStepStartTime);
+	        
+	    END_REGION
+	    
+	    REGION Step end timer
+	        
+	        #tonStepEnd(IN := #inStepEnd,
+	                    PT := #sStepEndTime);
+	        
+	    END_REGION
+	    
+	END_REGION
+	
+	REGION Step old
+	    
+	    IF #sStepNb<>#sStepNbOld THEN
+	        
+	        #sStepNbPrevious := #sStepNbOld;
+	        
+	    END_IF;
+	    
+	    #sStepNbOld := #sStepNb;
+	    
+	END_REGION
+	
+	REGION Reset impuls signals
+	    
+	    #inManualStepUp := FALSE;
+	    #inManualStepDown := FALSE;
+	    
+	    
+	END_REGION
+	
+	REGION Outputs
+	    
+	    #inManualStepNb := #sStepNb;
+	    
+	    #outStepNb := #sStepNb;
+	    
+	    #outStepStart := #tonStepStart.Q AND NOT #inSimulationMode;
+	    
+	END_REGION
+	
+	
+	
+	
+	
+END_FUNCTION_BLOCK
+
