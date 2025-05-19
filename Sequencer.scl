@@ -1,4 +1,23 @@
-﻿FUNCTION_BLOCK "Sequencer"
+﻿TYPE "ParamSequencerControl"
+VERSION : 0.1
+   STRUCT
+      Start : Bool;   // Start sekwencji
+      Pause : Bool;   // Pauza sekwencji - krok sie nie zmienia, sterowanie wylaczone
+      ManualMode : Bool;   // Sterowanie reczne sekwencerem
+      SimulationMode : Bool;   // Symulacja sekwencera bez wykonywania działań
+      StepNb : Int;   // Aktualny krok
+      NextStepNb : Int;
+      ManualStepNb : Int;   // Manualny przeskok do kroku
+      ManualStepUp : Bool;   // Manualny przeskok do następnego kroku
+      ManualStepDown : Bool;   // Manualny przeskok do poprzedniego kroku
+      StartTimeET : Time;
+      EndTimeET : Time;
+      MaxTimeET : Time;
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "Sequencer"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
    VAR_INPUT 
