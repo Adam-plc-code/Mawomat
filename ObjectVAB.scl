@@ -13,38 +13,39 @@ VERSION : 0.1
 
 END_TYPE
 
-FUNCTION_BLOCK "ObjectDM"
+FUNCTION_BLOCK "ObjectVAB"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
    VAR_INPUT 
-      inTurnOnConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie załączenia
-      inTurnOffConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie wyłączenia
-      inCircBreaker { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - rozłącznik
-      inPTC { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - PTC
-      inReadySpare1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
+      inFBOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie otwarcia
+      inFBClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie zamkniecia
+      inPowerSupply { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - zasilanie
+      inReadySpare { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
+      inReadySpare1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - zatrzymanie awaryjne
       inReadySpare2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
       inLocalMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb lokalny
       inRemoteMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb remontowy
       inExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Błąd zewnętrzny (0-ok)
       inLockAutoMan { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Blokada przełączenia trybu Auto-Manual
-      inInterlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Interlok
-      inDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Kierunek obrotów (1-odwrotny)
+      inInterlockOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Interlok otwarcia
+      inInterlockClose : Bool;   // Interlok zamkniecia
       inGlobalAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Globalny reset
       inAutoOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Resetowanie sterowania na końcu
    END_VAR
 
    VAR_OUTPUT 
-      oControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście sterujące
-      oControlDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście strujące kierunkiem obrotów
+      oControlOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście sterujące otworz
+      oControlClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście sterujące zamknij
       oAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście reset obiektu
       oFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście awaria
-      oTurnedOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączone
-      oTurnedOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyłączone
+      oOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Otwarty
+      oClosed { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Zamkniety
       oControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
    END_VAR
 
    VAR_IN_OUT 
-      Enable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączanie z programu
+      cmdOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Rozkaz otwarcia z programu
+      cmdClose : Bool;   // Rozkaz zamkniecia z programu
       Object : "ParamMawomat";
    END_VAR
 
@@ -54,32 +55,35 @@ VERSION : 0.1
       statSymOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statSwitchEnable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statManTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statManDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statSwitchControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statFaultReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statActivate { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statTurnOnConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statTurnOffConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTurnOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTurnClose : Bool;
+      statFBOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statFBClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statLocal { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statRemote { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statLockAutoMan { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statInterlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statInterlockOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statInterlockClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       tofTurnOnDelay {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
       tofTurnOffDelay {InstructionName := 'TOF_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TOF_TIME;
       tonAlarm {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
       statAlarmStart { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statControlMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
-      statControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statTmrOnOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statControlOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statControlClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTmrOnQ { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTmrOffQ { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       trigGlobalReset {InstructionName := 'R_TRIG'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : R_TRIG;
       statFaultCond1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statFaultCond2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
       statFaultCond3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
       statFaultCond4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultCond5 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
       statFaultModeCond { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
    END_VAR
 
@@ -95,10 +99,10 @@ VERSION : 0.1
       MODE_MANUAL : Int := 4;
       MODE_AUTO : Int := 8;
       STATUS_FAULT : Int := 1;
-      STATUS_OFF : Int := 2;
-      STATUS_STARTING : Int := 4;
-      STATUS_ON : Int := 8;
-      STATUS_STOPPING : Int := 16;
+      STATUS_CLOSE : Int := 2;
+      STATUS_OPENING : Int := 4;
+      STATUS_OPEN : Int := 8;
+      STATUS_CLOSING : Int := 16;
    END_VAR
 
 
@@ -107,7 +111,9 @@ BEGIN
 	// Author: Adam
 	// Version: 1.4
 	// Date: 2025-05-05
-	// Description: Motor control class for TIA Portal
+	// Description: Valve Automatic Bistabil with 2 coil control class for TIA Portal
+	// Na wyjscia sterujace wplywa #statExtFault, jako np wylaczenie awaryjne
+	// Zawor bistabilny 
 	// ================================
 	
 	REGION Rewriting inputs
@@ -117,7 +123,6 @@ BEGIN
 	    #statSymOn := #"Object".paramCmdOper.%X1;
 	    #statSwitchEnable := #"Object".paramCmdOper.%X2;
 	    #statManTurnOn := #"Object".paramCmdOper.%X3;
-	    #statManDirection := #"Object".paramCmdOper.%X4;
 	    #statSwitchControl := #"Object".paramCmdOper.%X6;
 	    
 	    //Operator Control Word Impulses
@@ -131,43 +136,48 @@ BEGIN
 	    
 	    IF NOT #statSymOn THEN
 	        
-	        #statTurnOn := #Enable;
-	        #statTurnOnConfirm := #inTurnOnConfirm;
-	        #statTurnOffConfirm := #inTurnOffConfirm;
-	        #statReady := #inCircBreaker AND #inPTC AND #inReadySpare1 AND #inReadySpare2;
+	        #statTurnOpen := #cmdOpen;
+	        #statTurnClose := #cmdClose;
+	        #statFBOpen := #inFBOpen;
+	        #statFBClose := #inFBClose;
+	        #statReady := #inPowerSupply AND #inReadySpare AND #inReadySpare1 AND #inReadySpare2;
 	        #statLocal := #inLocalMode;
 	        #statRemote := #inRemoteMode;
 	        #statExtFault := #inExtFault;
 	        #statLockAutoMan := #inLockAutoMan;
-	        #statInterlock := #inInterlock;
-	        #statDirection := #inDirection;
+	        #statInterlockOpen := #inInterlockOpen;
+	        #statInterlockClose := #inInterlockClose;
+	        
 	        
 	        //Rewriting inputs to simulation bits when simulotion is to switch fluently
 	        #"Object".paramSimOper.%X0 := #statActivate;
-	        #"Object".paramSimOper.%X1 := #statTurnOn;
-	        #"Object".paramSimOper.%X2 := #statTurnOnConfirm;
-	        #"Object".paramSimOper.%X3 := #statTurnOffConfirm;
+	        #"Object".paramSimOper.%X1 := #statTurnOpen;
+	        #"Object".paramSimOper.%X2 := #statFBOpen;
+	        #"Object".paramSimOper.%X3 := #statFBClose;
 	        #"Object".paramSimOper.%X4 := #statReady;
 	        #"Object".paramSimOper.%X5 := #statLocal;
 	        #"Object".paramSimOper.%X6 := #statRemote;
 	        #"Object".paramSimOper.%X7 := #statExtFault;
 	        #"Object".paramSimOper.%X8 := #statLockAutoMan;
-	        #"Object".paramSimOper.%X9 := #statInterlock;
-	        #"Object".paramSimOper.%X10 := #statDirection;
+	        #"Object".paramSimOper.%X9 := #statInterlockOpen;
+	        #"Object".paramSimOper.%X10 := FALSE;
+	        #"Object".paramSimOper.%X11 := #statInterlockClose;
+	        #"Object".paramSimOper.%X12 := #statTurnClose;
 	        
 	    ELSE
 	        
 	        #statActivate := #"Object".paramSimOper.%X0;
-	        #statTurnOn := #"Object".paramSimOper.%X1;
-	        #statTurnOnConfirm := #"Object".paramSimOper.%X2;
-	        #statTurnOffConfirm := #"Object".paramSimOper.%X3;
+	        #statTurnOpen := #"Object".paramSimOper.%X1;
+	        #statFBOpen := #"Object".paramSimOper.%X2;
+	        #statFBClose := #"Object".paramSimOper.%X3;
 	        #statReady := #"Object".paramSimOper.%X4;
 	        #statLocal := #"Object".paramSimOper.%X5;
 	        #statRemote := #"Object".paramSimOper.%X6;
 	        #statExtFault := #"Object".paramSimOper.%X7;
 	        #statLockAutoMan := #"Object".paramSimOper.%X8;
-	        #statInterlock := #"Object".paramSimOper.%X9;
-	        #statDirection := #"Object".paramSimOper.%X10;
+	        #statInterlockOpen := #"Object".paramSimOper.%X9;
+	        #statInterlockClose := #"Object".paramSimOper.%X11;
+	        #statTurnClose := #"Object".paramSimOper.%X12;
 	        
 	    END_IF;
 	    
@@ -201,23 +211,15 @@ BEGIN
 	    #tParamTurnOnDelay := 1000 * #"Object".paramTurnOnDelay;
 	    #tParamTurnOffDelay := 1000 * #"Object".paramTurnOffDelay;
 	    
-	    #tofTurnOnDelay(IN := #statTurnOn,
+	    #tofTurnOnDelay(IN := #statTurnOpen,
 	                    PT := #tParamTurnOnDelay);
 	    
-	    #tofTurnOffDelay(IN := #statTurnOn,
+	    #tofTurnOffDelay(IN := #statTurnClose,
 	                     PT := #tParamTurnOffDelay);
 	    
-	    IF #tofTurnOnDelay.Q THEN
-	        
-	        #statTmrOnOff := TRUE;
-	        
-	    END_IF;
+	    #statTmrOnQ := #tofTurnOnDelay.Q;
+	    #statTmrOffQ := #tofTurnOffDelay.Q;
 	    
-	    IF NOT #tofTurnOffDelay.Q THEN
-	        
-	        #statTmrOnOff := FALSE;
-	        
-	    END_IF;
 	END_REGION
 	
 	REGION Fault 
@@ -228,10 +230,12 @@ BEGIN
 	    #statControlMode <> #MODE_LOCAL AND //in local mode there is no alarm
 	    #statControlMode <> #MODE_REMOTE;//in remote mode there is no alarm
 	    
-	    #statFaultCond1 := (#statControl XOR #statTurnOnConfirm);//xor  0110 - if A and B have different state then =1
-	    #statFaultCond2 := (NOT #statControl XOR #statTurnOffConfirm);
-	    #statFaultCond3 := (#statTurnOnConfirm AND #statTurnOffConfirm);
-	    #statFaultCond4 := (NOT #statTurnOnConfirm AND NOT #statTurnOffConfirm);
+	    
+	    #statFaultCond1 := (#statControlOpen AND NOT #statFBOpen);
+	    #statFaultCond2 := (#statControlClose AND NOT #statFBClose);
+	    #statFaultCond3 := (#statFBOpen AND #statFBClose);
+	    #statFaultCond4 := (NOT #statFBOpen AND NOT #statFBClose);
+	    #statFaultCond5 := (#statControlOpen AND #statControlClose);
 	    
 	    //Alarm from switching control 
 	    #statAlarmStart :=
@@ -239,8 +243,10 @@ BEGIN
 	    (#statFaultCond1 OR
 	    #statFaultCond2 OR
 	    #statFaultCond3 OR
-	    #statFaultCond4);
+	    #statFaultCond4 OR
+	    #statFaultCond5);
 	    
+	    //Generating switching alarm after delay
 	    #tParamAlarmDelay := 1000 * #"Object".paramAlarmDelay;
 	    
 	    //Generating switching alarm after delay
@@ -263,8 +269,8 @@ BEGIN
 	    #"Object".statusFaultCode.%X0 := #tonAlarm.Q;
 	    #"Object".statusFaultCode.%X1 := NOT #statReady;
 	    #"Object".statusFaultCode.%X2 := #statExtFault;
-	    #"Object".statusFaultCode.%X3 := NOT #inCircBreaker;
-	    #"Object".statusFaultCode.%X4 := NOT #inPTC;
+	    #"Object".statusFaultCode.%X3 := NOT #inPowerSupply;
+	    #"Object".statusFaultCode.%X4 := NOT #inReadySpare;
 	    #"Object".statusFaultCode.%X5 := NOT #inReadySpare1;
 	    #"Object".statusFaultCode.%X6 := NOT #inReadySpare2;
 	    
@@ -287,13 +293,13 @@ BEGIN
 	        
 	        #statManAuto := FALSE;
 	        
-	        IF #statTurnOffConfirm THEN
+	        IF #statFBClose THEN
 	            
-	            #statTurnOn := FALSE;
+	            #statTurnOpen := FALSE;
 	            
-	        ELSIF #statTurnOnConfirm THEN
+	        ELSIF #statFBOpen THEN
 	            
-	            #statTurnOn := TRUE;
+	            #statTurnOpen := TRUE;
 	            
 	        END_IF;
 	        
@@ -303,48 +309,38 @@ BEGIN
 	    // Przypadek gdy ktos z wlaczonym automatycznie urz. przechodzi na tryb zdalny-reczny
 	    IF #statControlMode = #MODE_AUTO THEN
 	        
-	        #statManTurnOn := #statTurnOn;
-	        #statManDirection := #statDirection;
+	        #statManTurnOn := #statTurnOpen;
 	        
 	    END_IF;
-	    
-	    //Resetowanie rozkazu zalaczenia w trybie manualnym po awarii
-	    IF #statFault THEN
-	        
-	        #statManTurnOn := FALSE;
-	        
-	    END_IF;
-	    
-	    
-	    
+	
 	    
 	END_REGION
 	
 	REGION Control and Direction output
 	    
-	    IF #statSwitchEnable AND NOT #statInterlock AND NOT #statFault THEN
+	    IF #statSwitchEnable AND NOT #statInterlockOpen AND NOT #statExtFault  THEN
 	        
 	        IF #statControlMode = #MODE_AUTO THEN
 	            
-	            #statControl := #statTmrOnOff;
-	            #oControlDirection := #statDirection;
+	            #statControlOpen := #statTmrOnQ;
+	            #statControlClose := #statTmrOffQ;
 	            
 	        ELSIF #statControlMode = #MODE_MANUAL THEN
 	            
-	            #statControl := #statManTurnOn;
-	            #oControlDirection := #statManDirection;
+	            #statControlOpen := #statManTurnOn;
+	            #statControlClose := NOT #statManTurnOn;
 	            
 	        ELSE
 	            
-	            #statControl := FALSE;
-	            #oControlDirection := FALSE;
+	            #statControlOpen := FALSE;
+	            #statControlClose := FALSE;
 	            
 	        END_IF;
 	        
 	    ELSE
 	        
-	        #statControl := FALSE;
-	        #oControlDirection := FALSE;
+	        #statControlOpen := FALSE;
+	        #statControlClose := FALSE;
 	        
 	    END_IF;
 	    
@@ -365,33 +361,33 @@ BEGIN
 	        
 	        CASE #statControlMode OF
 	            #MODE_REMOTE:
-	                #"Object".statusStatus := #STATUS_OFF;
+	                #"Object".statusStatus := #STATUS_CLOSE;
 	            #MODE_LOCAL:
-	                IF #statTurnOnConfirm THEN
-	                    #"Object".statusStatus := #STATUS_ON;
-	                ELSIF #statTurnOffConfirm THEN
-	                    #"Object".statusStatus := #STATUS_OFF;
-	                ELSIF #statControl THEN
-	                    #"Object".statusStatus := #STATUS_STARTING;
-	                ELSIF NOT #statControl THEN
-	                    #"Object".statusStatus := #STATUS_STOPPING;
+	                IF #statFBOpen THEN
+	                    #"Object".statusStatus := #STATUS_OPEN;
+	                ELSIF #statFBClose THEN
+	                    #"Object".statusStatus := #STATUS_CLOSE;
+	                ELSIF #statControlOpen THEN
+	                    #"Object".statusStatus := #STATUS_OPENING;
+	                ELSE
+	                    #"Object".statusStatus := #STATUS_CLOSING;
 	                END_IF;
 	            #MODE_MANUAL, #MODE_AUTO:
 	                IF #statSwitchControl AND #statSwitchEnable THEN
-	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
-	                        #"Object".statusStatus := #STATUS_ON;
-	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
-	                        #"Object".statusStatus := #STATUS_OFF;
-	                    ELSIF #statControl THEN
-	                        #"Object".statusStatus := #STATUS_STARTING;
-	                    ELSIF NOT #statControl THEN
-	                        #"Object".statusStatus := #STATUS_STOPPING;
+	                    IF #statControlOpen AND #statFBOpen AND NOT #statFBClose THEN
+	                        #"Object".statusStatus := #STATUS_OPEN;
+	                    ELSIF NOT #statControlClose AND #statFBClose AND NOT #statFBOpen THEN
+	                        #"Object".statusStatus := #STATUS_CLOSE;
+	                    ELSIF #statControlOpen THEN
+	                        #"Object".statusStatus := #STATUS_OPENING;
+	                    ELSE
+	                        #"Object".statusStatus := #STATUS_CLOSING;
 	                    END_IF;
 	                ELSE
-	                    IF #statControl THEN
-	                        #"Object".statusStatus := #STATUS_ON;
-	                    ELSIF NOT #statControl THEN
-	                        #"Object".statusStatus := #STATUS_OFF;
+	                    IF #statControlOpen THEN
+	                        #"Object".statusStatus := #STATUS_OPEN;
+	                    ELSIF #statControlClose THEN
+	                        #"Object".statusStatus := #STATUS_CLOSE;
 	                    END_IF;
 	                END_IF;
 	            ELSE
@@ -399,19 +395,19 @@ BEGIN
 	        END_CASE;
 	        
 	        
-	        
+	       
 	    END_IF;
 	    
 	    CASE #"Object".statusStatus OF
-	        #STATUS_ON:
-	            #oTurnedOn := TRUE;
-	            #oTurnedOff := FALSE;
-	        #STATUS_OFF:
-	            #oTurnedOff := TRUE;
-	            #oTurnedOn := FALSE;
+	        #STATUS_OPEN:
+	            #oOpen := TRUE;
+	            #oClosed := FALSE;
+	        #STATUS_CLOSE:
+	            #oClosed := TRUE;
+	            #oOpen := FALSE;
 	        ELSE
-	            #oTurnedOn := FALSE;
-	            #oTurnedOff := FALSE;
+	            #oOpen := FALSE;
+	            #oClosed := FALSE;
 	    END_CASE;
 	    
 	END_REGION ;
@@ -423,7 +419,7 @@ BEGIN
 	    
 	    IF #inAutoOff THEN
 	        
-	        #statTurnOn := FALSE;
+	        #statTurnOpen := FALSE;
 	        
 	    END_IF;
 	    
@@ -435,7 +431,6 @@ BEGIN
 	    #"Object".paramCmdOper.%X1 := #statSymOn;
 	    #"Object".paramCmdOper.%X2 := #statSwitchEnable;
 	    #"Object".paramCmdOper.%X3 := #statManTurnOn;
-	    #"Object".paramCmdOper.%X4 := #statManDirection;
 	    #"Object".paramCmdOper.%X6 := #statSwitchControl;
 	    #"Object".paramCmdOper.%X7 := #statFaultReset;
 	    
@@ -444,9 +439,11 @@ BEGIN
 	    
 	    #oFault := #statFault;
 	    
-	    #Enable := #statTurnOn;
+	    #cmdOpen := #statTurnOpen;
+	    #cmdClose := #statTurnClose;
 	    
-	    #oControl := #statControl;
+	    #oControlOpen := #statControlOpen;
+	    #oControlClose := #statControlClose;
 	END_REGION
 	
 END_FUNCTION_BLOCK
