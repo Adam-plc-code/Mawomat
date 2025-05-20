@@ -1,0 +1,453 @@
+﻿TYPE "ParamMawomat"
+VERSION : 0.1
+   STRUCT
+      paramTurnOnDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia załączenia [s]
+      paramTurnOffDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia wyłączenia [s]
+      paramAlarmDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia alarmu od potwierdzeń [s]
+      paramCmdOper : Word := 16#0045;   // Komendy manualne (5-Auto+SterowanieOn, 45- +Sprawdzanie potwierdzeń)
+      paramSimOper : Word;   // Komendy symulacji
+      statusFaultCode : Byte;   // Kod awarii
+      statusStatus : Int;   // Status ( 1-awaria; 2-Wył; 4-Załączanie; 8-Zał; 16-Wyłączanie)
+      statusControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "ObjectDM"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      inTurnOnConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie załączenia
+      inTurnOffConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie wyłączenia
+      inCircBreaker { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - rozłącznik
+      inPTC { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - PTC
+      inEmerSTOP { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - zatrzymanie awaryjne
+      inReadySpare2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
+      inLocalMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb lokalny
+      inRemoteMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb remontowy
+      inExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Błąd zewnętrzny
+      inLockAutoMan { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Blokada przełączenia trybu Auto-Manual
+      inInterlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Interlok
+      inDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Kierunek obrotów (1-odwrotny)
+      inGlobalAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Globalny reset
+      inAutoOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Resetowanie sterowania na końcu
+   END_VAR
+
+   VAR_OUTPUT 
+      oControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście sterujące
+      oControlDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście strujące kierunkiem obrotów
+      oAckFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście reset obiektu
+      oFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyjście awaria
+      oTurnedOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączone
+      oTurnedOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Wyłączone
+      oControlMode : Int;   // Tryb pracy (1-remont; 2-lokal; 4-manual; 8-auto)
+   END_VAR
+
+   VAR_IN_OUT 
+      Enable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Załączanie z programu
+      Object : "ParamMawomat";
+   END_VAR
+
+   VAR 
+      statReady { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statManAuto { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statSymOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statSwitchEnable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statManTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statManDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statSwitchControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statFaultReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statActivate { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTurnOnConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTurnOffConfirm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statLocal { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statRemote { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statLockAutoMan { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statInterlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statDirection { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      tofTurnOnDelay {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
+      tofTurnOffDelay {InstructionName := 'TOF_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TOF_TIME;
+      tonAlarm {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
+      statAlarmStart { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statControlMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      statControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statTmrOnOff { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      trigGlobalReset {InstructionName := 'R_TRIG'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : R_TRIG;
+      statFaultCond1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statFaultCond2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultCond3 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultCond4 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := FALSE;
+      statFaultModeCond { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+   VAR_TEMP 
+      tParamTurnOnDelay : DInt;
+      tParamTurnOffDelay : DInt;
+      tParamAlarmDelay : DInt;
+   END_VAR
+
+   VAR CONSTANT 
+      MODE_REMOTE : Int := 1;
+      MODE_LOCAL : Int := 2;
+      MODE_MANUAL : Int := 4;
+      MODE_AUTO : Int := 8;
+      STATUS_FAULT : Int := 1;
+      STATUS_OFF : Int := 2;
+      STATUS_STARTING : Int := 4;
+      STATUS_ON : Int := 8;
+      STATUS_STOPPING : Int := 16;
+   END_VAR
+
+
+BEGIN
+	// ================================
+	// Author: Adam
+	// Version: 1.4
+	// Date: 2025-05-05
+	// Description: Motor control class for TIA Portal
+	// ================================
+	
+	REGION Rewriting inputs
+	    
+	    //Operator Control Word
+	    #statManAuto := #"Object".paramCmdOper.%X0;
+	    #statSymOn := #"Object".paramCmdOper.%X1;
+	    #statSwitchEnable := #"Object".paramCmdOper.%X2;
+	    #statManTurnOn := #"Object".paramCmdOper.%X3;
+	    #statManDirection := #"Object".paramCmdOper.%X4;
+	    #statSwitchControl := #"Object".paramCmdOper.%X6;
+	    
+	    //Operator Control Word Impulses
+	    #trigGlobalReset(CLK := #inGlobalAckFault);
+	    
+	    #statFaultReset := #trigGlobalReset.Q OR #"Object".paramCmdOper.%X7;
+	    
+	END_REGION
+	
+	REGION Rewriting inputs or simulation signals to statics
+	    
+	    IF NOT #statSymOn THEN
+	        
+	        #statTurnOn := #Enable;
+	        #statTurnOnConfirm := #inTurnOnConfirm;
+	        #statTurnOffConfirm := #inTurnOffConfirm;
+	        #statReady := #inCircBreaker AND #inPTC AND #inEmerSTOP AND #inReadySpare2;
+	        #statLocal := #inLocalMode;
+	        #statRemote := #inRemoteMode;
+	        #statExtFault := #inExtFault;
+	        #statLockAutoMan := #inLockAutoMan;
+	        #statInterlock := #inInterlock;
+	        #statDirection := #inDirection;
+	        
+	        //Rewriting inputs to simulation bits when simulotion is to switch fluently
+	        #"Object".paramSimOper.%X0 := #statActivate;
+	        #"Object".paramSimOper.%X1 := #statTurnOn;
+	        #"Object".paramSimOper.%X2 := #statTurnOnConfirm;
+	        #"Object".paramSimOper.%X3 := #statTurnOffConfirm;
+	        #"Object".paramSimOper.%X4 := #statReady;
+	        #"Object".paramSimOper.%X5 := #statLocal;
+	        #"Object".paramSimOper.%X6 := #statRemote;
+	        #"Object".paramSimOper.%X7 := #statExtFault;
+	        #"Object".paramSimOper.%X8 := #statLockAutoMan;
+	        #"Object".paramSimOper.%X9 := #statInterlock;
+	        #"Object".paramSimOper.%X10 := #statDirection;
+	        
+	    ELSE
+	        
+	        #statActivate := #"Object".paramSimOper.%X0;
+	        #statTurnOn := #"Object".paramSimOper.%X1;
+	        #statTurnOnConfirm := #"Object".paramSimOper.%X2;
+	        #statTurnOffConfirm := #"Object".paramSimOper.%X3;
+	        #statReady := #"Object".paramSimOper.%X4;
+	        #statLocal := #"Object".paramSimOper.%X5;
+	        #statRemote := #"Object".paramSimOper.%X6;
+	        #statExtFault := #"Object".paramSimOper.%X7;
+	        #statLockAutoMan := #"Object".paramSimOper.%X8;
+	        #statInterlock := #"Object".paramSimOper.%X9;
+	        #statDirection := #"Object".paramSimOper.%X10;
+	        
+	    END_IF;
+	    
+	    
+	END_REGION
+	
+	REGION Control Mode
+	    
+	    IF #statRemote THEN
+	        
+	        #statControlMode := #MODE_REMOTE;
+	        
+	    ELSIF #statLocal THEN
+	        
+	        #statControlMode := #MODE_LOCAL;
+	        
+	    ELSIF NOT #statManAuto AND NOT #statLockAutoMan THEN
+	        
+	        #statControlMode := #MODE_MANUAL;
+	        
+	    ELSIF #statManAuto AND NOT #statLockAutoMan THEN
+	        
+	        #statControlMode := #MODE_AUTO;
+	        
+	    END_IF;
+	    
+	END_REGION
+	
+	REGION TurnOn/Off Delay
+	    
+	    #tParamTurnOnDelay := 1000 * #"Object".paramTurnOnDelay;
+	    #tParamTurnOffDelay := 1000 * #"Object".paramTurnOffDelay;
+	    
+	    #tofTurnOnDelay(IN := #statTurnOn,
+	                    PT := #tParamTurnOnDelay);
+	    
+	    #tofTurnOffDelay(IN := #statTurnOn,
+	                     PT := #tParamTurnOffDelay);
+	    
+	    IF #tofTurnOnDelay.Q THEN
+	        
+	        #statTmrOnOff := TRUE;
+	        
+	    END_IF;
+	    
+	    IF NOT #tofTurnOffDelay.Q THEN
+	        
+	        #statTmrOnOff := FALSE;
+	        
+	    END_IF;
+	END_REGION
+	
+	REGION Fault 
+	    
+	    #statFaultModeCond :=
+	    #statSwitchControl AND //is switch controling on
+	    #statSwitchEnable AND //is objects output is eneble to turn on
+	    #statControlMode <> #MODE_LOCAL AND //in local mode there is no alarm
+	    #statControlMode <> #MODE_REMOTE;//in remote mode there is no alarm
+	    
+	    #statFaultCond1 := (#statControl XOR #statTurnOnConfirm);//xor  0110 - if A and B have different state then =1
+	    #statFaultCond2 := (NOT #statControl XOR #statTurnOffConfirm);
+	    #statFaultCond3 := (#statTurnOnConfirm AND #statTurnOffConfirm);
+	    #statFaultCond4 := (NOT #statTurnOnConfirm AND NOT #statTurnOffConfirm);
+	    
+	    //Alarm from switching control 
+	    #statAlarmStart :=
+	    #statFaultModeCond AND
+	    (#statFaultCond1 OR
+	    #statFaultCond2 OR
+	    #statFaultCond3 OR
+	    #statFaultCond4);
+	    
+	    #tParamAlarmDelay := 1000 * #"Object".paramAlarmDelay;
+	    
+	    //Generating switching alarm after delay
+	    #tonAlarm(IN := #statAlarmStart,
+	              PT := #tParamAlarmDelay);
+	    
+	    
+	    //Generating fault
+	    IF #tonAlarm.Q OR NOT #statReady OR #statExtFault THEN
+	        
+	        #statFault := TRUE;
+	        
+	    ELSIF #statFaultReset THEN
+	        
+	        #statFault := FALSE;
+	        
+	    END_IF;
+	    
+	    //Fault code
+	    #"Object".statusFaultCode.%X0 := #tonAlarm.Q;
+	    #"Object".statusFaultCode.%X1 := NOT #statReady;
+	    #"Object".statusFaultCode.%X2 := #statExtFault;
+	    #"Object".statusFaultCode.%X3 := NOT #inCircBreaker;
+	    #"Object".statusFaultCode.%X4 := NOT #inPTC;
+	    #"Object".statusFaultCode.%X5 := NOT #inEmerSTOP;
+	    #"Object".statusFaultCode.%X6 := NOT #inReadySpare2;
+	    
+	END_REGION
+	
+	REGION Command locks
+	    
+	    IF #statControlMode = #MODE_AUTO AND #statLockAutoMan THEN
+	        
+	        #statManAuto := TRUE;
+	        
+	    ELSIF #statControlMode = #MODE_MANUAL AND #statLockAutoMan THEN
+	        
+	        #statManAuto := FALSE;
+	        
+	    END_IF;
+	    
+	    // Writing states from Local to Manual when object when switching Local to Manual
+	    IF #statControlMode = #MODE_LOCAL THEN
+	        
+	        #statManAuto := FALSE;
+	        
+	        IF #statTurnOffConfirm THEN
+	            
+	            #statTurnOn := FALSE;
+	            
+	        ELSIF #statTurnOnConfirm THEN
+	            
+	            #statTurnOn := TRUE;
+	            
+	        END_IF;
+	        
+	    END_IF;
+	    
+	    // Writing states from Auto to Manual when object when switching Auto to Manual
+	    // Przypadek gdy ktos z wlaczonym automatycznie urz. przechodzi na tryb zdalny-reczny
+	    IF #statControlMode = #MODE_AUTO THEN
+	        
+	        #statManTurnOn := #statTurnOn;
+	        #statManDirection := #statDirection;
+	        
+	    END_IF;
+	    
+	    //Resetowanie rozkazu zalaczenia w trybie manualnym po awarii
+	    IF #statFault THEN
+	        
+	        #statManTurnOn := FALSE;
+	        
+	    END_IF;
+	    
+	    
+	    
+	    
+	END_REGION
+	
+	REGION Control and Direction output
+	    
+	    IF #statSwitchEnable AND NOT #statInterlock AND NOT #statFault THEN
+	        
+	        IF #statControlMode = #MODE_AUTO THEN
+	            
+	            #statControl := #statTmrOnOff;
+	            #oControlDirection := #statDirection;
+	            
+	        ELSIF #statControlMode = #MODE_MANUAL THEN
+	            
+	            #statControl := #statManTurnOn;
+	            #oControlDirection := #statManDirection;
+	            
+	        ELSE
+	            
+	            #statControl := FALSE;
+	            #oControlDirection := FALSE;
+	            
+	        END_IF;
+	        
+	    ELSE
+	        
+	        #statControl := FALSE;
+	        #oControlDirection := FALSE;
+	        
+	    END_IF;
+	    
+	END_REGION
+	
+	
+	REGION Reset Control
+	    
+	    #oAckFault := #statFaultReset;
+	    
+	END_REGION ;
+	
+	REGION Device status code
+	    
+	    IF #statFault THEN
+	        #"Object".statusStatus := #STATUS_FAULT;
+	    ELSE
+	        
+	        CASE #statControlMode OF
+	            #MODE_REMOTE:
+	                #"Object".statusStatus := #STATUS_OFF;
+	            #MODE_LOCAL:
+	                IF #statTurnOnConfirm THEN
+	                    #"Object".statusStatus := #STATUS_ON;
+	                ELSIF #statTurnOffConfirm THEN
+	                    #"Object".statusStatus := #STATUS_OFF;
+	                ELSIF #statControl THEN
+	                    #"Object".statusStatus := #STATUS_STARTING;
+	                ELSIF NOT #statControl THEN
+	                    #"Object".statusStatus := #STATUS_STOPPING;
+	                END_IF;
+	            #MODE_MANUAL, #MODE_AUTO:
+	                IF #statSwitchControl AND #statSwitchEnable THEN
+	                    IF #statControl AND #statTurnOnConfirm AND NOT #statTurnOffConfirm THEN
+	                        #"Object".statusStatus := #STATUS_ON;
+	                    ELSIF NOT #statControl AND #statTurnOffConfirm AND NOT #statTurnOnConfirm THEN
+	                        #"Object".statusStatus := #STATUS_OFF;
+	                    ELSIF #statControl THEN
+	                        #"Object".statusStatus := #STATUS_STARTING;
+	                    ELSIF NOT #statControl THEN
+	                        #"Object".statusStatus := #STATUS_STOPPING;
+	                    END_IF;
+	                ELSE
+	                    IF #statControl THEN
+	                        #"Object".statusStatus := #STATUS_ON;
+	                    ELSIF NOT #statControl THEN
+	                        #"Object".statusStatus := #STATUS_OFF;
+	                    END_IF;
+	                END_IF;
+	            ELSE
+	                #"Object".statusStatus := #STATUS_FAULT;
+	        END_CASE;
+	        
+	        
+	        
+	    END_IF;
+	    
+	    CASE #"Object".statusStatus OF
+	        #STATUS_ON:
+	            #oTurnedOn := TRUE;
+	            #oTurnedOff := FALSE;
+	        #STATUS_OFF:
+	            #oTurnedOff := TRUE;
+	            #oTurnedOn := FALSE;
+	        ELSE
+	            #oTurnedOn := FALSE;
+	            #oTurnedOff := FALSE;
+	    END_CASE;
+	    
+	END_REGION ;
+	
+	
+	REGION Reseting impuls
+	    // Samokasowanie sygnalow
+	    #statFaultReset := false;
+	    
+	    IF #inAutoOff THEN
+	        
+	        #statTurnOn := FALSE;
+	        
+	    END_IF;
+	    
+	END_REGION ;
+	
+	REGION Rewriting TO outputs
+	    
+	    #"Object".paramCmdOper.%X0 := #statManAuto;
+	    #"Object".paramCmdOper.%X1 := #statSymOn;
+	    #"Object".paramCmdOper.%X2 := #statSwitchEnable;
+	    #"Object".paramCmdOper.%X3 := #statManTurnOn;
+	    #"Object".paramCmdOper.%X4 := #statManDirection;
+	    #"Object".paramCmdOper.%X6 := #statSwitchControl;
+	    #"Object".paramCmdOper.%X7 := #statFaultReset;
+	    
+	    #"Object".statusControlMode := #statControlMode;
+	    #oControlMode := #statControlMode;
+	    
+	    #oFault := #statFault;
+	    
+	    #Enable := #statTurnOn;
+	    
+	    #oControl := #statControl;
+	END_REGION
+	
+END_FUNCTION_BLOCK
+
