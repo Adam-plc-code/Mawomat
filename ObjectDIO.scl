@@ -1,0 +1,41 @@
+﻿TYPE "ParamDIO"
+VERSION : 0.1
+   STRUCT
+      param : Int;   // 0-auto; 2-symOff;6-symOn
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "ObjectDIO"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      input : Bool;
+   END_VAR
+
+   VAR_OUTPUT 
+      output : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      param : "ParamDIO";
+   END_VAR
+
+   VAR_TEMP 
+      tOutput : Bool;
+   END_VAR
+
+
+BEGIN
+	#param.param.%X0 := #input;
+	
+	IF NOT #param.param.%X1 THEN
+	    #tOutput := #input;
+	ELSE
+	    #tOutput := #param.param.%X2;
+	END_IF;
+	
+	#param.param.%X3 := #tOutput;
+	#output := #tOutput;
+END_FUNCTION_BLOCK
+
