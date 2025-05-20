@@ -1,9 +1,9 @@
 ﻿TYPE "ParamMawomat"
 VERSION : 0.1
    STRUCT
-      paramTurnOnDelay { S7_SetPoint := 'True'} : DInt;   // Czas opóźnienia załączenia [s]
-      paramTurnOffDelay { S7_SetPoint := 'True'} : DInt;   // Czas opóźnienia wyłączenia [s]
-      paramAlarmDelay { S7_SetPoint := 'True'} : DInt;   // Czas opóźnienia alarmu od potwierdzeń [s]
+      paramTurnOnDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia załączenia [s]
+      paramTurnOffDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia wyłączenia [s]
+      paramAlarmDelay { S7_SetPoint := 'True'} : Int;   // Czas opóźnienia alarmu od potwierdzeń [s]
       paramCmdOper : Word := 16#0045;   // Komendy manualne (5-Auto+SterowanieOn, 45- +Sprawdzanie potwierdzeń)
       paramSimOper : Word;   // Komendy symulacji
       statusFaultCode : Byte;   // Kod awarii
@@ -17,15 +17,15 @@ FUNCTION_BLOCK "ObjectVAM"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
    VAR_INPUT 
-      inFBOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie załączenia
-      inFBClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie wyłączenia
+      inFBOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie otwarcia
+      inFBClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Potwierdzenie zamkniecia
       inPowerSupply { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Gotowość obiektu - zasilanie
       inReadySpare { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
       inReadySpare1 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
       inReadySpare2 { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool := TRUE;   // Gotowość obiektu - rezerwa
       inLocalMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb lokalny
       inRemoteMode { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Tryb remontowy
-      inExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Błąd zewnętrzny
+      inExtFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Błąd zewnętrzny (0-ok)
       inLockAutoMan { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Blokada przełączenia trybu Auto-Manual
       inInterlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Interlok
       inNoNc { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Zawór No -1
@@ -81,6 +81,12 @@ VERSION : 0.1
       statFaultModeCond { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
    END_VAR
 
+   VAR_TEMP 
+      tParamTurnOnDelay : DInt;
+      tParamTurnOffDelay : DInt;
+      tParamAlarmDelay : DInt;
+   END_VAR
+
    VAR CONSTANT 
       MODE_REMOTE : Int := 1;
       MODE_LOCAL : Int := 2;
@@ -101,6 +107,8 @@ BEGIN
 	// Date: 2025-05-05
 	// Description: Valve Automatic Monostabil with 1 coil control class for TIA Portal
 	// Zawor monostabilny 
+	// Alarm nie wplywa na wyjscie sterujace
+	// Na wyjscie sterujace wplywa #statExtFault, jako np wylaczenie awaryjne
 	// ================================
 	
 	REGION Rewriting inputs
@@ -190,11 +198,14 @@ BEGIN
 	
 	REGION TurnOn/Off Delay
 	    
+	    #tParamTurnOnDelay := 1000 * #"Object".paramTurnOnDelay;
+	    #tParamTurnOffDelay := 1000 * #"Object".paramTurnOffDelay;
+	    
 	    #tofTurnOnDelay(IN := #statTurnOn,
-	                    PT := 1000 * #"Object".paramTurnOnDelay);
+	                    PT := #tParamTurnOnDelay);
 	    
 	    #tofTurnOffDelay(IN := #statTurnOn,
-	                     PT := 1000 * #"Object".paramTurnOffDelay);
+	                     PT := #tParamTurnOffDelay);
 	    
 	    IF #tofTurnOnDelay.Q THEN
 	        
@@ -237,8 +248,11 @@ BEGIN
 	    #statFaultCond4);
 	    
 	    //Generating switching alarm after delay
+	    #tParamAlarmDelay := 1000 * #"Object".paramAlarmDelay;
+	    
+	    //Generating switching alarm after delay
 	    #tonAlarm(IN := #statAlarmStart,
-	              PT := DINT_TO_TIME(1000 * #"Object".paramAlarmDelay));
+	              PT := #tParamAlarmDelay);
 	    
 	    
 	    //Generating fault
@@ -305,7 +319,7 @@ BEGIN
 	
 	REGION Control and Direction output
 	    
-	    IF #statSwitchEnable AND NOT #statInterlock  THEN
+	    IF #statSwitchEnable AND NOT #statInterlock AND NOT #statExtFault  THEN
 	        
 	        IF #statControlMode = #MODE_AUTO THEN
 	            
