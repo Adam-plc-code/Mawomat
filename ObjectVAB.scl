@@ -45,7 +45,7 @@ VERSION : 0.1
 
    VAR_IN_OUT 
       cmdOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Rozkaz otwarcia z programu
-      cmdClose : Bool;   // Rozkaz zamkniecia z programu
+      cmdClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;   // Rozkaz zamkniecia z programu
       Object : "ParamMawomat";
    END_VAR
 
@@ -54,7 +54,8 @@ VERSION : 0.1
       statManAuto { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statSymOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statSwitchEnable { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
-      statManTurnOn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statManOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      statManClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statSwitchControl { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statFaultReset { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statActivate { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
@@ -69,7 +70,7 @@ VERSION : 0.1
       statInterlockOpen { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statInterlockClose { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       tofTurnOnDelay {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
-      tofTurnOffDelay {InstructionName := 'TOF_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TOF_TIME;
+      tofTurnOffDelay {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
       tonAlarm {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
       statAlarmStart { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
       statFault { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
@@ -114,6 +115,7 @@ BEGIN
 	// Description: Valve Automatic Bistabil with 2 coil control class for TIA Portal
 	// Na wyjscia sterujace wplywa #statExtFault, jako np wylaczenie awaryjne
 	// Zawor bistabilny 
+	// Niemozliwe jest wysterowanie obu wyjsc jednoczesnie, 2 komendy jednoczesnie blokuja oba wyjscia
 	// ================================
 	
 	REGION Rewriting inputs
@@ -122,7 +124,8 @@ BEGIN
 	    #statManAuto := #"Object".paramCmdOper.%X0;
 	    #statSymOn := #"Object".paramCmdOper.%X1;
 	    #statSwitchEnable := #"Object".paramCmdOper.%X2;
-	    #statManTurnOn := #"Object".paramCmdOper.%X3;
+	    #statManOpen := #"Object".paramCmdOper.%X3;
+	    #statManClose := #"Object".paramCmdOper.%X4;
 	    #statSwitchControl := #"Object".paramCmdOper.%X6;
 	    
 	    //Operator Control Word Impulses
@@ -211,10 +214,10 @@ BEGIN
 	    #tParamTurnOnDelay := 1000 * #"Object".paramTurnOnDelay;
 	    #tParamTurnOffDelay := 1000 * #"Object".paramTurnOffDelay;
 	    
-	    #tofTurnOnDelay(IN := #statTurnOpen,
+	    #tofTurnOnDelay(IN := (#statTurnOpen AND NOT #statTurnClose),
 	                    PT := #tParamTurnOnDelay);
 	    
-	    #tofTurnOffDelay(IN := #statTurnClose,
+	    #tofTurnOffDelay(IN := (#statTurnClose AND NOT #statTurnOpen),
 	                     PT := #tParamTurnOffDelay);
 	    
 	    #statTmrOnQ := #tofTurnOnDelay.Q;
@@ -306,10 +309,10 @@ BEGIN
 	    END_IF;
 	    
 	    // Writing states from Auto to Manual when object when switching Auto to Manual
-	    // Przypadek gdy ktos z wlaczonym automatycznie urz. przechodzi na tryb zdalny-reczny
 	    IF #statControlMode = #MODE_AUTO THEN
 	        
-	        #statManTurnOn := #statTurnOpen;
+	        #statManOpen := #statTurnOpen;
+	        #statManClose := #statTurnClose;
 	        
 	    END_IF;
 	
@@ -327,8 +330,8 @@ BEGIN
 	            
 	        ELSIF #statControlMode = #MODE_MANUAL THEN
 	            
-	            #statControlOpen := #statManTurnOn;
-	            #statControlClose := NOT #statManTurnOn;
+	            #statControlOpen := #statManOpen AND NOT #statManClose;
+	            #statControlClose := #statManClose AND NOT #statManOpen;
 	            
 	        ELSE
 	            
@@ -430,7 +433,8 @@ BEGIN
 	    #"Object".paramCmdOper.%X0 := #statManAuto;
 	    #"Object".paramCmdOper.%X1 := #statSymOn;
 	    #"Object".paramCmdOper.%X2 := #statSwitchEnable;
-	    #"Object".paramCmdOper.%X3 := #statManTurnOn;
+	    #"Object".paramCmdOper.%X3 := #statManOpen;
+	    #"Object".paramCmdOper.%X4 := #statManClose;
 	    #"Object".paramCmdOper.%X6 := #statSwitchControl;
 	    #"Object".paramCmdOper.%X7 := #statFaultReset;
 	    
