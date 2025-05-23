@@ -1,0 +1,182 @@
+﻿TYPE "ParamMawomatAIO"
+VERSION : 0.1
+   STRUCT
+      Input : Int;   // Symulacja AO
+      Output : Real;   // Symulacja AI
+      paramScaleInMax : Real := 1.0;   // AI- 0-27648; AO - wielkosc fizyczna
+      paramScaleInMin : Real;   // AI- 0-27648; AO - wielkosc fizyczna
+      paramScaleOutMin : Real;   // AI - wielkosc fizyczna; AO - 0-27648
+      paramScaleOutMax : Real;   // AI - wielkosc fizyczna; AO - 0-27648
+      paramLimitHH : Real;
+      paramLimitH : Real;
+      paramLimitL : Real;
+      paramLimitLL : Real;
+      paramLimitHHDelay : Int;   // Czas opoźnienia alarmu HH
+      paramLimitLLDelay : Int;   // Czas opoźnienia alarmu LL
+      paramCmdOper : Byte;   // HEX:1-symAI; 2-symAO; 3c - blokada alarmow
+      statusStatus : Int;
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "ObjectAIO"
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT 
+      inValue { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+   END_VAR
+
+   VAR_OUTPUT 
+      Output { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+      AlarmHH { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      AlarmH { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      AlarmL { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      AlarmLL { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+   END_VAR
+
+   VAR_IN_OUT 
+      Object : "ParamMawomatAIO";
+   END_VAR
+
+   VAR 
+      sSimIn { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sSimOut { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sAlarmBlock { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Struct
+         HH { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+         H { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+         L { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+         LL { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      END_STRUCT;
+      sInput { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Int;
+      sInputNorm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+      sOutput { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Real;
+      sHHStart { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sLLStart { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sHAlarm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sLAlarm { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Bool;
+      sHHDelay { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+      sLLDelay { ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'} : Time;
+      tonHH {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
+      tonLL {InstructionName := 'TON_TIME'; LibVersion := '1.0'; ExternalAccessible := 'False'; ExternalVisible := 'False'; ExternalWritable := 'False'; S7_SetPoint := 'False'} : TON_TIME;
+   END_VAR
+
+
+BEGIN
+	// ================================
+	// Author: Adam
+	// Version: 1.0
+	// Date: 2025-05-21
+	// Description: Analog Input/Output Object
+	// Parametry:
+	// ScaleInMax,ScaleInMin - AI- 0-27648; AO - wielkosc fizyczna
+	// ScaleOutMin,paramScaleOutMax - AI - wielkosc fizyczna; AO - 0-27648
+	// LimitHHDelay,LimitLLDelay - opoznienie generowania alarmu 
+	// paramCmdOper.%X0 - symulacja wartosci wyjsciowej - symulacja dla AI
+	// paramCmdOper.%X1 - symulacja wartosci wejsciowej - symulacja dla AO
+	// ================================
+	
+	//Operator Control Word
+	#sSimOut := #"Object".paramCmdOper.%X0; 
+	#sSimIn := #"Object".paramCmdOper.%X1;
+	#sAlarmBlock.HH := #"Object".paramCmdOper.%X2;
+	#sAlarmBlock.H := #"Object".paramCmdOper.%X3;
+	#sAlarmBlock.L := #"Object".paramCmdOper.%X4;
+	#sAlarmBlock.LL := #"Object".paramCmdOper.%X5;
+	
+	REGION Input read
+	    
+	    IF NOT #sSimIn THEN
+	        
+	        #sInput := #inValue;
+	        
+	    ELSE
+	        
+	        #sInput := #Object.Input;
+	        
+	    END_IF;
+	    
+	END_REGION
+	
+	REGION Scaling value 
+	    
+	    #sInputNorm := NORM_X(MIN := #Object.paramScaleInMin, VALUE := #sInput, MAX := #Object.paramScaleInMax);
+	    
+	    IF NOT #sSimOut THEN
+	        
+	        #sOutput := SCALE_X(MIN := #Object.paramScaleOutMin, VALUE := #sInputNorm, MAX := #Object.paramScaleOutMax);
+	        #Object.Output := #sOutput;
+	        
+	    ELSE
+	        
+	        #sOutput := #Object.Output;
+	        
+	    END_IF;
+	
+	END_REGION
+	
+	REGION Alarms
+	    
+	    //HH limit
+	    #sHHDelay := 1000 * INT_TO_TIME(#Object.paramLimitHHDelay);
+	    #sHHStart := NOT #sAlarmBlock.HH AND (#sOutput >= #Object.paramLimitHH);
+	    
+	    #tonHH(IN := #sHHStart,
+	           PT := #sHHDelay);
+	       
+	    //LL limit
+	    #sLLDelay := 1000 * INT_TO_TIME(#Object.paramLimitLLDelay);
+	    #sLLStart := NOT #sAlarmBlock.LL AND (#sOutput <= #Object.paramLimitLL);
+	    
+	    #tonLL(IN := #sLLStart,
+	           PT := #sLLDelay);
+	    
+	    //H Limit
+	    
+	    #sHAlarm := (#sOutput >= #Object.paramLimitH) AND NOT #sAlarmBlock.H;
+	    
+	    //L Limit
+	    
+	    #sLAlarm := (#sOutput <= #Object.paramLimitL) AND NOT #sAlarmBlock.L;
+	    
+	END_REGION
+	
+	REGION Status
+	    
+	    IF #tonHH.Q THEN //Awaria HH
+	        #Object.statusStatus := 2;
+	        
+	    ELSIF #tonLL.Q THEN //Awaria LL
+	        #Object.statusStatus := 32;
+	        
+	    ELSIF #sHAlarm THEN //Ostrzezenie H
+	        #Object.statusStatus := 4;
+	        
+	    ELSIF #sLAlarm THEN //Ostrzezenie L
+	        #Object.statusStatus := 16;
+	        
+	    ELSE //Stan normalnej pracy
+	        #Object.statusStatus := 8;
+	        
+	    END_IF;
+	    
+	END_REGION
+	
+	REGION Output
+	    
+	    #Output := #sOutput;
+	    
+	    #AlarmHH := #tonHH.Q;
+	    #AlarmLL := #tonLL.Q;
+	    #AlarmH := #sHAlarm;
+	    #AlarmL := #sLAlarm;
+	    
+	END_REGION
+	
+	
+	
+	
+	
+	
+	
+END_FUNCTION_BLOCK
+

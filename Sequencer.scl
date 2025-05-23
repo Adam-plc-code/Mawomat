@@ -1,60 +1,141 @@
-﻿FUNCTION_BLOCK "Sequencer"
+﻿TYPE "ParamSequencerControl"
+VERSION : 0.1
+   STRUCT
+      Start : Bool;   // Start sekwencji
+      Pause : Bool;   // Pauza sekwencji - krok sie nie zmienia, sterowanie wylaczone
+      ManualMode : Bool;   // Sterowanie reczne sekwencerem
+      SimulationMode : Bool;   // Symulacja sekwencera bez wykonywania działań
+      StepNb : Int;   // Aktualny krok
+      NextStepNb : Int;
+      ManualStepNb : Int;   // Manualny przeskok do kroku
+      ManualStepUp : Bool;   // Manualny przeskok do następnego kroku
+      ManualStepDown : Bool;   // Manualny przeskok do poprzedniego kroku
+      StartTimeET : Time;
+      EndTimeET : Time;
+      MaxTimeET : Time;
+   END_STRUCT;
+
+END_TYPE
+
+FUNCTION_BLOCK "Sequencer"
 { S7_Optimized_Access := 'TRUE' }
 VERSION : 0.1
    VAR_INPUT 
-      inStart : Bool;
-      inNexStepNb : Int;
-      inManualMode : Bool;
-      inSimulationMode : Bool;
-      inStepStartTime : Int := 10;
-      inStepEndTime : Int := 10;
+      start : Bool;
+      stop : Bool;
+      pause : Bool;
+      inNexStepNb : Int;   // Numer kolejnego kroku z programu
+      inStepStartTime : Int := 10;   // Czas od wejścia w krok do wykonywania warunków
+      inStepEndTime : Int := 10;   // Czas od spełnienia warunku przejścia kroku do przejścia do następnego
+      inStepMaxTime : Int;
    END_VAR
 
    VAR_OUTPUT 
-      outStepNb : Int;
-      outStepStart : Bool;
+      outStepNb : Int;   // Aktualny krok
+      outCondEnable : Bool;   // Rozkaz wykoniania warunków
+      outStepExceed : Bool;   // Informacja przekroczenia czasu kroku
    END_VAR
 
    VAR_IN_OUT 
-      inStepEnd : Bool;
-      inManualStepNb : Int;
-      inManualStepUp : Bool;
-      inManualStepDown : Bool;
+      inStepEnd : Bool;   // Krok zakończony
+      Param : "ParamSequencerControl";
    END_VAR
 
    VAR 
+      sPause : Bool;
       sStepNb : Int;
       sStepNbOld : Int;
       sStepNbPrevious : Int;
       sStepStartTime : Time;
       sStepEndTime : Time;
+      sStepMaxTime : Time;
       sStepStart { S7_SetPoint := 'True'} : Bool;
+      trigStart {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
+      trigPause {InstructionName := 'R_TRIG'; LibVersion := '1.0'} : R_TRIG;
       tonStepStart {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
       tonStepEnd {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
+      tonStepMax {InstructionName := 'TON_TIME'; LibVersion := '1.0'} : TON_TIME;
    END_VAR
 
    VAR_TEMP 
-      tIntToStartTime : DInt;
-      tIntToEndTime : DInt;
+      tToStartTime : DInt;
+      tToEndTime : DInt;
+      tMaxStepTime : DInt;
    END_VAR
 
 
 BEGIN
-	IF #inStart THEN
+	// ================================
+	// Author: Adam
+	// Version: 1.0
+	// Date: 2025-05-19
+	// Description: Sequencer mechanics
+	// Tryby:
+	// Automatyczny - kroki przechodza po spelnieniu warunku inStepEnd do kroku inNexStepNb,
+	// Manualny - kroki mozna przelaczac +/-1 oraz przechodzic do konkretnego kroku
+	// Symulacja - kroki przechodza ale bez sygnalu sterowania outCondEnable
+	// Parametry:
+	// inStepStartTime - czas od wejscia kroku do wystawienia outStepStart, czyli warunku wykonywania instrukcji
+	// inStepEndTime - czas po spelnieniu warunku przejscia kroku do przejscia do nastepnego kroku
+	// inStepMaxTime - czas maksymalny kroku, po przekroczeniu wystawiane outStepExceed
+	// start,stop,pauza - sterowanie z programu 
+	// param.start, pause - sterowanie z zewnatrz 
+	// start - sekwencer startuje
+	// stop - sekwencer sie wylacza
+	// pauza - sekwencer pozostaje w kroku, nie wysterowuje outCondEnable, wymagane odpauzowanie z zewnatrz
+	// przez param.Pause = false, jezeli warunek pauzy z programu to po odpauzowaniu jest on ignorowany
+	// jezeli caly czasu wystepuje - zbocze
+	// ================================
+	
+	REGION Start Sequence
+	    
+	    #trigStart(CLK := #start);
+	    
+	    IF #trigStart.Q THEN
+	        
+	        #Param.Start := TRUE;
+	        
+	    ELSIF #stop THEN
+	        
+	        #Param.Start := FALSE;
+	        
+	    END_IF;
+	    
+	END_REGION
+	
+	REGION Pause sequence
+	    
+	    #trigPause(CLK := #pause);
+	    
+	    IF #trigPause.Q OR #Param.Pause THEN
+	        
+	        #Param.Pause := TRUE;
+	        
+	    ELSE
+	        
+	        #Param.Pause := FALSE;
+	        
+	    END_IF;
+	    
+	    
+	END_REGION
+	
+	
+	IF #Param.Start THEN
 	    
 	    REGION Operating Mode
 	        
-	        IF #inManualMode THEN
+	        IF #Param.ManualMode THEN
 	            
-	            #sStepNb := #inManualStepNb;
+	            #sStepNb := #Param.ManualStepNb;
 	            
 	            REGION Step +/- 1
 	                
-	                IF #inManualStepUp THEN
+	                IF #Param.ManualStepUp THEN
 	                    
 	                    #sStepNb := #inNexStepNb;
 	                    
-	                ELSIF #inManualStepDown THEN
+	                ELSIF #Param.ManualStepDown THEN
 	                    
 	                    #sStepNb := #sStepNbPrevious;
 	                    
@@ -68,7 +149,7 @@ BEGIN
 	                
 	                 #sStepNb := 1;
 	                
-	            ELSIF #tonStepEnd.Q THEN
+	             ELSIF #tonStepEnd.Q THEN
 	                
 	                #sStepNb := #inNexStepNb;
 	                #inStepEnd := FALSE;
@@ -86,9 +167,10 @@ BEGIN
 	    
 	END_IF;
 	
+	
 	REGION Step Start 
 	    
-	    IF #inStart AND #sStepNb<>#sStepNbOld OR NOT #inStart THEN
+	    IF #Param.Start AND #sStepNb<>#sStepNbOld OR NOT #Param.Start THEN
 	        
 	        #sStepStart := FALSE;
 	    ELSE
@@ -105,15 +187,18 @@ BEGIN
 	        
 	        //Czas poczatku i konca kroku zdefiniowany dla calej sekwencji
 	        //Mozna go nadpisywac w krokach 
-	        #tIntToStartTime := 1000 * #inStepStartTime;
-	        #tIntToEndTime := 1000 * #inStepEndTime;
+	        #tToStartTime := 1000 * #inStepStartTime;
+	        #tToEndTime := 1000 * #inStepEndTime;
+	        #tMaxStepTime := 1000 * #inStepMaxTime;
 	        
-	        #sStepStartTime := DINT_TO_TIME(#tIntToStartTime);
-	        #sStepEndTime := DINT_TO_TIME(#tIntToEndTime);
+	        #sStepStartTime := DINT_TO_TIME(#tToStartTime);
+	        #sStepEndTime := DINT_TO_TIME(#tToEndTime);
+	        #sStepMaxTime := DINT_TO_TIME(#tMaxStepTime);
+	        
 	        
 	    END_REGION
 	   
-	REGION Step start/end delay timers
+	REGION Step start & end delay, max step time timers
 	    
 	    REGION Step start timer
 	        
@@ -122,11 +207,19 @@ BEGIN
 	        
 	    END_REGION
 	    
+	    REGION Max step time
+	        
+	        #tonStepMax(IN:=#tonStepStart.Q,
+	                    PT:=#sStepMaxTime);
+	        
+	    END_REGION
+	    
+	    
 	    REGION Step end timer
 	        
-	        #tonStepEnd(IN := #inStepEnd,
+	        #tonStepEnd(IN := #inStepEnd AND NOT #Param.Pause,
 	                    PT := #sStepEndTime);
-	        
+	
 	    END_REGION
 	    
 	END_REGION
@@ -145,19 +238,31 @@ BEGIN
 	
 	REGION Reset impuls signals
 	    
-	    #inManualStepUp := FALSE;
-	    #inManualStepDown := FALSE;
+	    #Param.ManualStepUp := FALSE;
+	    #Param.ManualStepDown := FALSE;
 	    
 	    
 	END_REGION
 	
 	REGION Outputs
 	    
-	    #inManualStepNb := #sStepNb;
+	    #Param.StepNb := #sStepNb;
+	    #Param.NextStepNb := #inNexStepNb;
+	    #Param.StepNb:=#sStepNb;
+	    #Param.StartTimeET := #tonStepStart.ET;
+	    #Param.EndTimeET := #tonStepEnd.ET;
+	    #Param.MaxTimeET := #tonStepMax.ET;
 	    
 	    #outStepNb := #sStepNb;
 	    
-	    #outStepStart := #tonStepStart.Q AND NOT #inSimulationMode;
+	    #outCondEnable := #tonStepStart.Q AND NOT #Param.SimulationMode AND NOT #Param.Pause ;
+	    
+	    IF #inStepMaxTime <> 0 THEN
+	        #outStepExceed := #tonStepMax.Q;
+	    ELSE
+	        #outStepExceed := FALSE;
+	    END_IF;
+	
 	    
 	END_REGION
 	
